@@ -4,7 +4,21 @@
 
 ![Robo2VLM Overview](images/VQA-examples2.png)
 
+This repository is used for the 3D Vision course project on **Benchmarking Spatial and State Reasoning Skills for VLMs**.
+
 Using real robot trajectory data to enhance and evaluate Vision-Language Models (VLMs) through grounded visual question answering.
+
+## Project Scope
+
+This codebase builds on `Robo2VLM` and is adapted for benchmarking vision-language models on robotics VQA tasks with an emphasis on spatial reasoning, state understanding, and goal-conditioned manipulation questions.
+
+In addition to the original code, this repository contains cluster-oriented fixes that were required to run the benchmark pipeline on the ETH student cluster:
+
+- CUDA-matched PyTorch installation for newer GPUs such as `5060ti`
+- benchmark fixes for single-GPU evaluation
+- smaller evaluation subsets for faster runs
+- compatibility fixes for current `vLLM` versions
+- direct response parsing for multiple-choice evaluation on constrained hardware
 
 ## 🔥 Features
 
@@ -16,8 +30,12 @@ Using real robot trajectory data to enhance and evaluate Vision-Language Models 
 ## 🚀 Quick Start
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Create and activate a Python environment first
+# Then install dependencies, including a CUDA-matched PyTorch build
+
+# Example for ETH student cluster with cuda/13.0
+pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
+pip install --no-cache-dir vllm transformers datasets pillow tqdm numpy huggingface_hub accelerate sentencepiece
 
 # Fine-tune a model
 cd finetune/
@@ -30,8 +48,22 @@ docker run --gpus all -v $(pwd):/workspace robo2vlm
 
 # Evaluate models
 cd benchmark/
-python evaluation.py --model_name llama-3.2-vision
+python evaluation.py --models Qwen/Qwen2.5-VL-7B-Instruct --max_samples 20 --batch_size 1 --tensor_parallel_size 1
 ```
+
+## ETH Cluster Notes
+
+The benchmark path in `benchmark/` relies on `vLLM`, so older `1080ti` nodes are not suitable. Use a newer GPU type such as `5060ti`, load the matching CUDA module, and authenticate with Hugging Face outside the batch job.
+
+Typical Slurm settings used for this repository:
+
+```bash
+#SBATCH --account=3dv
+#SBATCH --gpus=5060ti:1
+#SBATCH --output=/work/courses/3dv/team43/logs/%x-%j.out
+```
+
+Batch jobs should not run `hf auth login`. Instead, authenticate once on the login node with the same `HF_HOME` path used by the job.
 
 ## 📊 Dataset
 
