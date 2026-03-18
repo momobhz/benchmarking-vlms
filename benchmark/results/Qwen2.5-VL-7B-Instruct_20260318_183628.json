@@ -1,0 +1,230 @@
+{
+  "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "accuracy": 25.0,
+  "total_examples": 20,
+  "tag_accuracies": {
+    "unknown": 25.0
+  },
+  "responses": [
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_middle_drawer_3973_q43",
+      "question": "Is there any obstacle blocking the robot from reaching bottle? A. [ B. ' C. N D. o E. '",
+      "expected": 0,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "B",
+      "predicted_letter": "B",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 4.815043687820435
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_middle_drawer_4454_q2",
+      "question": "The robot is to place blue plastic bottle into middle drawer. Has the robot successfully completed the task? A. [ B. ' C. C D. a E. n",
+      "expected": 1,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "B",
+      "predicted_letter": "B",
+      "correct": true,
+      "tag": "unknown",
+      "response_time": 0.11209774017333984
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_middle_drawer_4586_q55",
+      "question": "Is there any obstacle blocking the robot from reaching bottle? A. [ B. ' C. Y D. e E. s",
+      "expected": 2,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "C",
+      "predicted_letter": "C",
+      "correct": true,
+      "tag": "unknown",
+      "response_time": 0.10506129264831543
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_middle_drawer_5769_q15",
+      "question": "The robot is to place blue plastic bottle into middle drawer. Has the robot successfully completed the task? A. [ B. ' C. Y D. e E. s",
+      "expected": 3,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "C",
+      "predicted_letter": "C",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.11309123039245605
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_top_drawer_1413_q16",
+      "question": "Is there any obstacle blocking the robot from reaching bottle? A. [ B. ' C. P D. a E. r",
+      "expected": 2,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "B",
+      "predicted_letter": "B",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.10361456871032715
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_top_drawer_1955_q33",
+      "question": "Is the robot's grasp of the bottle stable? A. [ B. ' C. Y D. e E. s",
+      "expected": 2,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "A",
+      "predicted_letter": "A",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.10453224182128906
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_top_drawer_2239_q12",
+      "question": "The robot is tasked to place blue plastic bottle into top drawer. The robot is interacting with the bottle. Which phase of the grasp action is shown in the image? A. [ B. ' C. R D. e E. l",
+      "expected": 1,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "B",
+      "predicted_letter": "B",
+      "correct": true,
+      "tag": "unknown",
+      "response_time": 0.11288809776306152
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_top_drawer_2239_q14",
+      "question": "The robot is to place blue plastic bottle into top drawer. Has the robot successfully completed the task? A. [ B. ' C. Y D. e E. s",
+      "expected": 3,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "C",
+      "predicted_letter": "C",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.11097860336303711
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_top_drawer_2750_q45",
+      "question": "The robot is tasked to releasing the bottle by opening gripper with the bottle. After Releasing the bottle by opening gripper, what will be the robot's NEXT action phase? A. [ B. ' C. A D. p E. p",
+      "expected": 3,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "D",
+      "predicted_letter": "D",
+      "correct": true,
+      "tag": "unknown",
+      "response_time": 0.11675357818603516
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_top_drawer_3101_q17",
+      "question": "The robot's task is to place blue plastic bottle into top drawer. Which configuration shows the goal state that the robot should achieve? A. [ B. ' C. C D. o E. n",
+      "expected": 3,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "C",
+      "predicted_letter": "C",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.13740134239196777
+    },
+    {
+      "question_id": "fractal20220817_data_place_blue_plastic_bottle_into_top_drawer_3101_q29",
+      "question": "The robot's task is to place blue plastic bottle into top drawer. Which configuration shows the goal state that the robot should achieve? A. [ B. ' C. C D. o E. n",
+      "expected": 4,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "A",
+      "predicted_letter": "A",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.1453084945678711
+    },
+    {
+      "question_id": "fractal20220817_data_move_sponge_near_brown_chip_bag_3267_q30",
+      "question": "The robot is tasked to move sponge near brown chip bag. The robot is interacting with the sponge. Which phase of the grasp action is shown in the image? A. [ B. ' C. R D. e E. l",
+      "expected": 3,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "A",
+      "predicted_letter": "A",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.11243653297424316
+    },
+    {
+      "question_id": "fractal20220817_data_move_sponge_near_brown_chip_bag_966_q42",
+      "question": "Is there any obstacle blocking the robot from reaching sponge? A. [ B. ' C. P D. a E. r",
+      "expected": 1,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "B.",
+      "predicted_letter": "B",
+      "correct": true,
+      "tag": "unknown",
+      "response_time": 0.12068676948547363
+    },
+    {
+      "question_id": "fractal20220817_data_move_sponge_near_green_can_272_q5",
+      "question": "The robot is tasked to move sponge near green can. The robot is interacting with the sponge. Which phase of the grasp action is shown in the image? A. [ B. ' C. A D. p E. p",
+      "expected": 0,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "C",
+      "predicted_letter": "C",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.11381888389587402
+    },
+    {
+      "question_id": "fractal20220817_data_move_sponge_near_green_can_2832_q12",
+      "question": "The robot is tasked to approaching the sponge with open gripper with the sponge. After Approaching the sponge with open gripper, what will be the robot's NEXT action phase? A. [ B. ' C. R D. e E. l",
+      "expected": 2,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "A",
+      "predicted_letter": "A",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.1113886833190918
+    },
+    {
+      "question_id": "fractal20220817_data_move_sponge_near_green_can_3329_q9",
+      "question": "Is the robot's gripper open? A. [ B. ' C. P D. a E. r",
+      "expected": 2,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "D",
+      "predicted_letter": "D",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.10799312591552734
+    },
+    {
+      "question_id": "fractal20220817_data_move_sponge_near_green_can_4668_q25",
+      "question": "The robot is tasked to move sponge near green can. The robot is interacting with the sponge. Which phase of the grasp action is shown in the image? A. [ B. ' C. C D. l E. o",
+      "expected": 3,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "A",
+      "predicted_letter": "A",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.1092078685760498
+    },
+    {
+      "question_id": "fractal20220817_data_move_sponge_near_green_can_5260_q13",
+      "question": "Is the robot's grasp of the sponge stable? A. [ B. ' C. C D. a E. n",
+      "expected": 2,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "A",
+      "predicted_letter": "A",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.10547161102294922
+    },
+    {
+      "question_id": "fractal20220817_data_pick_brown_chip_bag_5875_q7",
+      "question": "The robot is to pick brown chip bag. Has the robot successfully completed the task? A. [ B. ' C. Y D. e E. s",
+      "expected": 0,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "B",
+      "predicted_letter": "B",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.11350274085998535
+    },
+    {
+      "question_id": "fractal20220817_data_pick_brown_chip_bag_5930_q12",
+      "question": "The robot is tasked to approaching the chip bag with open gripper with the chip bag. After Approaching the chip bag with open gripper, what will be the robot's NEXT action phase? A. [ B. ' C. F D. i E. r",
+      "expected": 4,
+      "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "predicted": "A",
+      "predicted_letter": "A",
+      "correct": false,
+      "tag": "unknown",
+      "response_time": 0.11150789260864258
+    }
+  ]
+}
