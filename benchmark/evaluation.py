@@ -145,6 +145,15 @@ class VQADataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.dataset[self.indices[idx]]
+
+        if idx < 3:
+            print("DEBUG sample", idx)
+            print("DEBUG choices type:", type(item["choices"]).__name__)
+            print("DEBUG choices value:", repr(item["choices"]))
+            if isinstance(item["choices"], list) and len(item["choices"]) > 0:
+                print("DEBUG first choice type:", type(item["choices"][0]).__name__)
+                print("DEBUG first choice value:", repr(item["choices"][0]))
+
         return {
             "id": item["id"],
             "question": item["question"],
