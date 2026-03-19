@@ -1,4 +1,5 @@
 import os
+import ast
 import json
 import base64
 import argparse
@@ -145,6 +146,7 @@ class VQADataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.dataset[self.indices[idx]]
+
         return {
             "id": item["id"],
             "question": item["question"],
@@ -159,14 +161,20 @@ class VQADataset(Dataset):
         question_text = item["question"]
         choices = item["choices"]
 
+        if isinstance(choices, str):
+            try:
+                choices = ast.literal_eval(choices)
+            except Exception:
+                choices = [choices]
+
         formatted_choices = ""
         choice_letter_map = {0: "A", 1: "B", 2: "C", 3: "D", 4: "E"}
 
         for i, choice in enumerate(choices):
             if i < len(choice_letter_map):
-                formatted_choices += f" {choice_letter_map[i]}. {choice}"
+                formatted_choices += f"\n{choice_letter_map[i]}. {choice}"
 
-        return f"{question_text}{formatted_choices}"
+        return f"{question_text}\nChoices:{formatted_choices}"
 
 
 class ModelEvaluator:
