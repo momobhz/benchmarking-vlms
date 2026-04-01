@@ -48,3 +48,33 @@ This dataset was created by:
 3. Loading and embedding actual image data directly in the dataset
 4. Converting to the HuggingFace datasets format
 
+## Question Recategorization
+
+Use `scripts/recategorize_robo2vlm.py` to relabel Robo2VLM questions for the course project taxonomy:
+
+- `spatial_reasoning`
+- `affordance_understanding`
+- `neither`
+
+The script reads the published dataset from Hugging Face, sends each question to an OpenAI model using the Responses API with structured JSON output, and writes:
+
+- `curation_results.jsonl`: labeled records with rationale, confidence, and prompt version
+- `by_label/*.jsonl`: filtered subsets for each new category
+- `summary.json`: aggregate counts and original-tag breakdowns when tags are available
+
+Example:
+
+```bash
+export OPENAI_API_KEY=...
+python3 scripts/recategorize_robo2vlm.py \
+  --dataset-name keplerccc/Robo2VLM-1 \
+  --split test \
+  --output-dir outputs/robo2vlm_spatial_affordance \
+  --max-samples 200 \
+  --resume
+```
+
+Notes:
+
+- Install the Hugging Face `datasets` package before running the curator.
+- The output keeps source IDs instead of duplicating image payloads; join on `id` with the original dataset when you want to benchmark VLMs on the filtered subsets.

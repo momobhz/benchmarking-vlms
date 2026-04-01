@@ -89,6 +89,12 @@ from vllm import LLM, SamplingParams
 # Model-specific imports for handling images
 from transformers import AutoProcessor, AutoTokenizer
 
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(SCRIPT_DIR)
+DEFAULT_SPATIAL_INDICES_FILE = os.path.join(REPO_ROOT, "test_spatial_indices.json")
+DEFAULT_AFFORDANCE_INDICES_FILE = os.path.join(REPO_ROOT, "test_affordance_indices.json")
+
 # Constants
 DEFAULT_MODELS = [ 
                 #   "llava-hf/llava-1.5-7b-hf", 
@@ -128,8 +134,21 @@ def initialize_answer_extractor(tensor_parallel_size=1):
 
 class VQADataset(Dataset):
     """Load and prepare VQA dataset for evaluation."""
-    def __init__(self, dataset_name, split="test", max_samples=None):
-        if max_samples is None:
+    def __init__(self, dataset_name, split="test", max_samples=None, sample_indices=None, subset_name="full"):
+        self.dataset_name = dataset_name
+        self.split = split
+        self.subset_name = subset_name
+        self.sample_indices = sample_indices
+
+        if sample_indices is not None:
+            requested_indices = list(sample_indices)
+            if max_samples is not None:
+                requested_indices = requested_indices[:max_samples]
+
+            self.dataset = self._load_index_subset(requested_indices)
+            self.indices = requested_indices
+            self.is_streaming = True
+        elif max_samples is None:
             self.dataset = load_dataset(dataset_name, split=split)
             self.indices = list(range(len(self.dataset)))
             self.is_streaming = False
@@ -141,11 +160,43 @@ class VQADataset(Dataset):
 
         self.max_samples = len(self.dataset)
 
+    def _load_index_subset(self, requested_indices):
+        """Load only the examples referenced by source indices from a split."""
+        if not requested_indices:
+            return []
+
+        stream = load_dataset(self.dataset_name, split=self.split, streaming=True)
+        requested_set = set(requested_indices)
+        highest_index = max(requested_set)
+        loaded_examples = {}
+
+        for dataset_index, item in enumerate(stream):
+            if dataset_index in requested_set:
+                loaded_examples[dataset_index] = item
+                if len(loaded_examples) == len(requested_set):
+                    break
+            if dataset_index >= highest_index:
+                break
+
+        missing_indices = [index for index in requested_indices if index not in loaded_examples]
+        if missing_indices:
+            raise ValueError(
+                f"Failed to load {len(missing_indices)} requested indices from "
+                f"{self.dataset_name} ({self.split} split). Missing head: {missing_indices[:10]}"
+            )
+
+        return [loaded_examples[index] for index in requested_indices]
+
     def __len__(self):
         return len(self.indices)
 
     def __getitem__(self, idx):
-        item = self.dataset[self.indices[idx]]
+        if self.sample_indices is not None:
+            item = self.dataset[idx]
+            source_index = self.indices[idx]
+        else:
+            item = self.dataset[self.indices[idx]]
+            source_index = self.indices[idx]
 
         return {
             "id": item["id"],
@@ -153,7 +204,8 @@ class VQADataset(Dataset):
             "choices": item["choices"],
             "correct_answer": item["correct_answer"],
             "image": item["image"],
-            "tag": item.get("tag", "unknown")
+            "tag": item.get("tag", "unknown"),
+            "source_index": source_index,
         }
 
     def format_multiple_choice_question(self, item):
@@ -401,6 +453,7 @@ class ModelEvaluator:
                 "predicted_letter": letter_answers[i],
                 "correct": letter_answers[i] == expected_letter if letter_answers[i] else False,
                 "tag": batch_data[i].get("tag", "unknown"),
+                "source_index": batch_data[i].get("source_index"),
                 "response_time": (time.time() - start_time) / len(outputs),
             })
         
@@ -427,14 +480,18 @@ def extract_letter_answer(queries, predicted_answers):
 
     return [choice_answer_clean(answer) for answer in predicted_answers]
 
-def save_model_results(model_id, accuracy, tag_results, results):
+def save_model_results(model_id, accuracy, tag_results, results, dataset):
     """Save results for a single model to a JSON file."""
     # Create results directory if it doesn't exist
-    os.makedirs("results", exist_ok=True)
+    results_dir = os.path.join(SCRIPT_DIR, "results")
+    os.makedirs(results_dir, exist_ok=True)
     
     # Create simplified results dictionary focused on accuracy
     results_dict = {
         "model": model_id,
+        "dataset": dataset.dataset_name,
+        "split": dataset.split,
+        "subset": dataset.subset_name,
         "accuracy": accuracy,
         "total_examples": len(results),
         "tag_accuracies": {
@@ -446,7 +503,10 @@ def save_model_results(model_id, accuracy, tag_results, results):
     
     # Generate filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"results/{model_id.split('/')[-1]}_{timestamp}.json"
+    filename = os.path.join(
+        results_dir,
+        f"{model_id.split('/')[-1]}_{dataset.subset_name}_{timestamp}.json",
+    )
     
     with open(filename, "w") as f:
         json.dump(results_dict, f, indent=2)
@@ -537,7 +597,7 @@ def evaluate_model(model_id, dataset, max_batch_size=DEFAULT_MAX_BATCH_SIZE, ten
                 print(f"{tag:<30} | {tag_accuracy:>8.2f}% | {result['correct']}/{result['total']} | {avg_tag_time:>8.2f}s")
         
         # Save results for this model
-        save_model_results(model_id, accuracy, tag_results, results)
+        save_model_results(model_id, accuracy, tag_results, results, dataset)
         
         return accuracy, tag_results, results
     except Exception as e:
@@ -559,7 +619,7 @@ def parse_arguments():
     
     parser.add_argument(
         "--dataset", 
-        default="keplerccc/ManipulationVQA",
+        default="keplerccc/Robo2VLM-1",
         help="Hugging Face dataset name"
     )
     
@@ -567,6 +627,19 @@ def parse_arguments():
         "--split", 
         default="test",
         help="Dataset split to use (default: test)"
+    )
+
+    parser.add_argument(
+        "--subset",
+        choices=["full", "spatial", "affordance"],
+        default="full",
+        help="Evaluate the full split or only the spatial/affordance subset defined by source indices.",
+    )
+
+    parser.add_argument(
+        "--indices_file",
+        default=None,
+        help="Optional JSON file containing source indices for subset evaluation.",
     )
     
     parser.add_argument(
@@ -598,6 +671,33 @@ def parse_arguments():
     
     return parser.parse_args()
 
+
+def load_subset_indices(args):
+    """Resolve the evaluation subset and its source indices."""
+    if args.subset == "full":
+        return None, "full"
+
+    if args.split != "test":
+        raise ValueError(
+            f"{args.subset} indices are defined for the test split, but --split was set to '{args.split}'."
+        )
+
+    if args.indices_file:
+        indices_path = args.indices_file
+    elif args.subset == "spatial":
+        indices_path = DEFAULT_SPATIAL_INDICES_FILE
+    else:
+        indices_path = DEFAULT_AFFORDANCE_INDICES_FILE
+
+    with open(indices_path, "r") as handle:
+        indices = json.load(handle)
+
+    if not isinstance(indices, list) or not all(isinstance(index, int) for index in indices):
+        raise ValueError(f"Subset index file must contain a JSON list of integers: {indices_path}")
+
+    print(f"Loaded {len(indices)} {args.subset} indices from {indices_path}")
+    return indices, args.subset
+
 def main():
     """Main entry point."""
     args = parse_arguments()
@@ -605,16 +705,25 @@ def main():
     # Check if GPUs are available, wait if they're in use
     # wait_for_gpu_availability()
     
+    subset_indices, subset_name = load_subset_indices(args)
+
     print(f"Evaluating {len(args.models)} models on {args.dataset} ({args.split} split)")
+    print(f"Subset: {subset_name}")
     print(f"Max samples: {args.max_samples}, Batch size: {args.batch_size}, Tensor parallel size: {args.tensor_parallel_size}")
     print(f"Models: {', '.join(args.models)}")
     
     # Load dataset
-    dataset = VQADataset(args.dataset, split=args.split, max_samples=args.max_samples)
+    dataset = VQADataset(
+        args.dataset,
+        split=args.split,
+        max_samples=args.max_samples,
+        sample_indices=subset_indices,
+        subset_name=subset_name,
+    )
     print(f"Loaded {len(dataset)} examples for evaluation")
     
     # Create results directory
-    os.makedirs("results", exist_ok=True)
+    os.makedirs(os.path.join(SCRIPT_DIR, "results"), exist_ok=True)
     
     # Evaluate each model
     results = {}
