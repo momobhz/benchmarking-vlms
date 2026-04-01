@@ -92,8 +92,8 @@ from transformers import AutoProcessor, AutoTokenizer
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-DEFAULT_SPATIAL_INDICES_FILE = os.path.join(REPO_ROOT, "test_spatial_indices.json")
-DEFAULT_AFFORDANCE_INDICES_FILE = os.path.join(REPO_ROOT, "test_affordance_indices.json")
+DEFAULT_SPATIAL_INDICES_FILE = os.path.join(REPO_ROOT, "full_test_spatial_indices.json")
+DEFAULT_AFFORDANCE_INDICES_FILE = os.path.join(REPO_ROOT, "full_test_affordance_indices.json")
 
 # Constants
 DEFAULT_MODELS = [ 
