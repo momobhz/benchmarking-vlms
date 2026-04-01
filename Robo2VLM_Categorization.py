@@ -49,8 +49,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-samples",
         type=int,
-        default=1000,
-        help="Maximum number of samples to process. Use -1 to process the full split.",
+        default=-1,
+        help="Maximum number of samples to process. Use -1 to process the full split (default).",
     )
     parser.add_argument(
         "--output-dir",
@@ -155,6 +155,7 @@ def classify_question(question: str, tokenizer, model) -> str:
 def categorize_dataset(dataset, tokenizer, model, max_samples: int):
     spatial_indices: list[int] = []
     affordance_indices: list[int] = []
+    neither_indices: list[int] = []
 
     for index, sample in enumerate(dataset):
         category = classify_question(sample["question"], tokenizer, model)
@@ -162,6 +163,8 @@ def categorize_dataset(dataset, tokenizer, model, max_samples: int):
             spatial_indices.append(index)
         elif category == "affordance":
             affordance_indices.append(index)
+        else:
+            neither_indices.append(index)
 
         processed = index + 1
         if processed % 100 == 0:
@@ -169,24 +172,37 @@ def categorize_dataset(dataset, tokenizer, model, max_samples: int):
         if max_samples >= 0 and processed >= max_samples:
             break
 
-    return spatial_indices, affordance_indices
+    return spatial_indices, affordance_indices, neither_indices
 
 
-def save_indices(output_dir: Path, split: str, spatial_indices: list[int], affordance_indices: list[int]) -> None:
+def save_indices(
+    output_dir: Path,
+    split: str,
+    spatial_indices: list[int],
+    affordance_indices: list[int],
+    neither_indices: list[int],
+) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     spatial_path = output_dir / f"{split}_spatial_indices.json"
     affordance_path = output_dir / f"{split}_affordance_indices.json"
+    neither_path = output_dir / f"{split}_neither_indices.json"
 
     with spatial_path.open("w", encoding="utf-8") as handle:
         json.dump(spatial_indices, handle)
     with affordance_path.open("w", encoding="utf-8") as handle:
         json.dump(affordance_indices, handle)
+    with neither_path.open("w", encoding="utf-8") as handle:
+        json.dump(neither_indices, handle)
 
-    print(f"Finished: spatial {len(spatial_indices)}, affordance {len(affordance_indices)}")
+    print(
+        f"Finished: spatial {len(spatial_indices)}, affordance {len(affordance_indices)}, neither {len(neither_indices)}"
+    )
     print("Sample spatial indices:", spatial_indices[:10])
     print("Sample affordance indices:", affordance_indices[:10])
+    print("Sample neither indices:", neither_indices[:10])
     print("Saved:", spatial_path)
     print("Saved:", affordance_path)
+    print("Saved:", neither_path)
 
 
 def decode_image(sample) -> PILImage.Image:
@@ -228,13 +244,13 @@ def main() -> None:
 
     tokenizer, model = load_tokenizer_and_model(args.model_name, use_gpu)
     dataset = load_streaming_dataset(args.dataset_name, args.split)
-    spatial_indices, affordance_indices = categorize_dataset(
+    spatial_indices, affordance_indices, neither_indices = categorize_dataset(
         dataset=dataset,
         tokenizer=tokenizer,
         model=model,
         max_samples=args.max_samples,
     )
-    save_indices(args.output_dir, args.split, spatial_indices, affordance_indices)
+    save_indices(args.output_dir, args.split, spatial_indices, affordance_indices, neither_indices)
 
     if args.preview_first_sample:
         preview_first_sample(load_streaming_dataset(args.dataset_name, args.split), args.open_images)
