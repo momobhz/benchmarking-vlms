@@ -103,3 +103,22 @@ Notes:
 
 - Streaming mode is enabled by default to avoid materializing the full dataset locally.
 - Use `--no-streaming` only if you explicitly want the Hugging Face dataset cached on disk.
+
+## Interactive Cluster Plot
+
+Use `scripts/plot_robo2vlm_question_clusters.py` to turn the generated `*_umap.csv`
+into an interactive Plotly HTML plot where hovering a point shows the original
+question text.
+
+Example:
+
+```bash
+python3 scripts/plot_robo2vlm_question_clusters.py \
+  --input-csv outputs/robo2vlm_umap/test_sentence-transformers_all-MiniLM-L6-v2_umap.csv
+```
+
+This writes `*_interactive.html` next to the input CSV by default.
+
+Dependency:
+
+- Install Plotly with `python3 -m pip install plotly`
