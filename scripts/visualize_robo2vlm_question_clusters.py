@@ -104,6 +104,19 @@ def parse_args() -> argparse.Namespace:
         help="Optional cap on the number of split examples to process.",
     )
     parser.add_argument(
+        "--streaming",
+        dest="streaming",
+        action="store_true",
+        help="Stream the dataset instead of materializing it locally.",
+    )
+    parser.add_argument(
+        "--no-streaming",
+        dest="streaming",
+        action="store_false",
+        help="Disable datasets streaming mode and materialize the split locally.",
+    )
+    parser.set_defaults(streaming=True)
+    parser.add_argument(
         "--pca-components",
         type=int,
         default=50,
@@ -209,6 +222,7 @@ def load_question_records(
     split: str,
     spatial_indices: set[int],
     affordance_indices: set[int],
+    streaming: bool,
     max_samples: int | None = None,
 ) -> list[dict[str, object]]:
     try:
@@ -219,13 +233,15 @@ def load_question_records(
             "'pip install datasets'."
         ) from exc
 
-    dataset = load_dataset(dataset_name, split=split)
-    if max_samples is not None:
+    dataset = load_dataset(dataset_name, split=split, streaming=streaming)
+    if not streaming and max_samples is not None:
         limit = min(max_samples, len(dataset))
         dataset = dataset.select(range(limit))
 
     records: list[dict[str, object]] = []
     for source_index, row in enumerate(dataset):
+        if streaming and max_samples is not None and source_index >= max_samples:
+            break
         records.append(
             {
                 "source_index": source_index,
@@ -416,6 +432,7 @@ def write_summary(
         "embedding_model": args.embedding_model,
         "num_questions": len(records),
         "embedding_shape": list(embedding_shape),
+        "streaming": args.streaming,
         "label_counts": {label: counts.get(label, 0) for label in LABEL_ORDER},
         "spatial_indices_file": str(args.spatial_indices),
         "affordance_indices_file": str(args.affordance_indices),
@@ -446,6 +463,7 @@ def main() -> None:
         split=args.split,
         spatial_indices=spatial_indices,
         affordance_indices=affordance_indices,
+        streaming=args.streaming,
         max_samples=args.max_samples,
     )
     if not records:

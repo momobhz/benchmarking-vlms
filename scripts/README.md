@@ -98,3 +98,8 @@ by default, derives `neither` from the remaining questions in the split, and wri
 - `*_umap.csv`: one row per question with `source_index`, `id`, `label`, and 2D coordinates
 - `*_umap.png`: scatter plot colored by category
 - `*_umap_summary.json`: dataset, label counts, and projection settings
+
+Notes:
+
+- Streaming mode is enabled by default to avoid materializing the full dataset locally.
+- Use `--no-streaming` only if you explicitly want the Hugging Face dataset cached on disk.
