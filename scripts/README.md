@@ -78,3 +78,23 @@ Notes:
 
 - Install the Hugging Face `datasets` package before running the curator.
 - The output keeps source IDs instead of duplicating image payloads; join on `id` with the original dataset when you want to benchmark VLMs on the filtered subsets.
+
+## Question Embedding Visualization
+
+Use `scripts/visualize_robo2vlm_question_clusters.py` to verify the category split by
+embedding every question and projecting the question embeddings into 2D with UMAP.
+
+Example:
+
+```bash
+python3 scripts/visualize_robo2vlm_question_clusters.py \
+  --output-dir outputs/robo2vlm_umap \
+  --embedding-model sentence-transformers/all-MiniLM-L6-v2
+```
+
+The script uses `full_test_spatial_indices.json` and `full_test_affordance_indices.json`
+by default, derives `neither` from the remaining questions in the split, and writes:
+
+- `*_umap.csv`: one row per question with `source_index`, `id`, `label`, and 2D coordinates
+- `*_umap.png`: scatter plot colored by category
+- `*_umap_summary.json`: dataset, label counts, and projection settings
