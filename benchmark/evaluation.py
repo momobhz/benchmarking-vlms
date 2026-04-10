@@ -229,6 +229,101 @@ class VQADataset(Dataset):
         return f"{question_text}\nChoices:{formatted_choices}"
 
 
+def ensure_pil_image(image: Any) -> Image.Image:
+    """Convert a dataset image payload into a PIL image."""
+    if isinstance(image, str):
+        return Image.open(image).convert("RGB")
+    if isinstance(image, Image.Image):
+        return image.convert("RGB")
+    return Image.fromarray(image).convert("RGB")
+
+
+def create_blank_image_like(image: Any) -> Image.Image:
+    """Create a blank image that preserves the source image dimensions."""
+    source_image = ensure_pil_image(image)
+    return Image.new("RGB", source_image.size, color=(0, 0, 0))
+
+
+def build_deranged_index_mapping(num_items: int, seed: int) -> List[int]:
+    """Create a deterministic permutation with no fixed points."""
+    if num_items < 2:
+        raise ValueError("Shuffled-image sanity checks require at least 2 examples.")
+
+    indices = list(range(num_items))
+    shuffled = indices[:]
+    rng = random.Random(seed)
+
+    for _ in range(20):
+        rng.shuffle(shuffled)
+        if all(i != shuffled[i] for i in indices):
+            return shuffled
+
+    shift = rng.randrange(1, num_items)
+    return indices[shift:] + indices[:shift]
+
+
+def build_sanity_check_context(dataset: Dataset, sanity_check: str, sanity_seed: int) -> Dict[str, Any]:
+    """Prepare any state needed to run a visual sanity check."""
+    context: Dict[str, Any] = {
+        "mode": sanity_check,
+        "seed": sanity_seed,
+        "image_mapping": None,
+        "repeat_image": None,
+        "repeat_source_index": None,
+    }
+
+    if sanity_check == "shuffle":
+        context["image_mapping"] = build_deranged_index_mapping(len(dataset), sanity_seed)
+    elif sanity_check == "repeat_first":
+        first_item = dataset[0]
+        context["repeat_image"] = first_item["image"]
+        context["repeat_source_index"] = first_item.get("source_index")
+
+    return context
+
+
+def apply_sanity_check_to_batch(
+    batch_items: List[Dict[str, Any]],
+    dataset: Dataset,
+    sanity_context: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """Return batch items with any requested image ablation applied."""
+    mode = sanity_context["mode"]
+    transformed_items = [dict(item) for item in batch_items]
+
+    if mode == "none":
+        for item in transformed_items:
+            item["image_source_index"] = item.get("source_index")
+            item["sanity_check"] = mode
+        return transformed_items
+
+    if mode == "blank":
+        for item in transformed_items:
+            item["image"] = create_blank_image_like(item["image"])
+            item["image_source_index"] = None
+            item["sanity_check"] = mode
+        return transformed_items
+
+    if mode == "shuffle":
+        image_mapping = sanity_context["image_mapping"]
+        for item in transformed_items:
+            donor_eval_index = image_mapping[item["eval_index"]]
+            donor_item = dataset[donor_eval_index]
+            item["image"] = donor_item["image"]
+            item["image_source_index"] = donor_item.get("source_index")
+            item["sanity_check"] = mode
+        return transformed_items
+
+    if mode == "repeat_first":
+        for item in transformed_items:
+            item["image"] = sanity_context["repeat_image"]
+            item["image_source_index"] = sanity_context["repeat_source_index"]
+            item["sanity_check"] = mode
+        return transformed_items
+
+    raise ValueError(f"Unsupported sanity check mode: {mode}")
+
+
 class ModelEvaluator:
     """Evaluate VLM models on VQA tasks."""
     def __init__(self, model_id: str, device="cuda", tensor_parallel_size=DEFAULT_TENSOR_PARALLEL_SIZE):
@@ -257,7 +352,10 @@ class ModelEvaluator:
         model_request_data = self._get_model_request_data([dummy_question])
         
         # Extract engine args and initialize vLLM
-        engine_args_dict = model_request_data.engine_args.__dict__
+        engine_args_dict = model_request_data.engine_args.__dict__.copy()
+        # The family-specific loader provides prompt formatting defaults, but
+        # evaluation should always instantiate the exact checkpoint requested.
+        engine_args_dict["model"] = self.model_id
         engine_args_dict["tensor_parallel_size"] = tensor_parallel_size
         engine_args_dict["max_model_len"] = 4096
         engine_args_dict["gpu_memory_utilization"] = 0.9
@@ -425,6 +523,7 @@ class ModelEvaluator:
             inputs,
             sampling_params=self.sampling_params,
         )
+        batch_elapsed = time.time() - start_time
         
         results = []
 
@@ -454,7 +553,9 @@ class ModelEvaluator:
                 "correct": letter_answers[i] == expected_letter if letter_answers[i] else False,
                 "tag": batch_data[i].get("tag", "unknown"),
                 "source_index": batch_data[i].get("source_index"),
-                "response_time": (time.time() - start_time) / len(outputs),
+                "image_source_index": batch_data[i].get("image_source_index"),
+                "sanity_check": batch_data[i].get("sanity_check", "none"),
+                "response_time": batch_elapsed / len(outputs),
             })
         
         return results
@@ -480,7 +581,7 @@ def extract_letter_answer(queries, predicted_answers):
 
     return [choice_answer_clean(answer) for answer in predicted_answers]
 
-def save_model_results(model_id, accuracy, tag_results, results, dataset):
+def save_model_results(model_id, accuracy, tag_results, results, dataset, sanity_check="none", sanity_seed=0):
     """Save results for a single model to a JSON file."""
     # Create results directory if it doesn't exist
     results_dir = os.path.join(SCRIPT_DIR, "results")
@@ -492,6 +593,8 @@ def save_model_results(model_id, accuracy, tag_results, results, dataset):
         "dataset": dataset.dataset_name,
         "split": dataset.split,
         "subset": dataset.subset_name,
+        "sanity_check": sanity_check,
+        "sanity_seed": sanity_seed,
         "accuracy": accuracy,
         "total_examples": len(results),
         "tag_accuracies": {
@@ -503,9 +606,10 @@ def save_model_results(model_id, accuracy, tag_results, results, dataset):
     
     # Generate filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    sanity_suffix = f"_{sanity_check}" if sanity_check != "none" else ""
     filename = os.path.join(
         results_dir,
-        f"{model_id.split('/')[-1]}_{dataset.subset_name}_{timestamp}.json",
+        f"{model_id.split('/')[-1]}_{dataset.subset_name}{sanity_suffix}_{timestamp}.json",
     )
     
     with open(filename, "w") as f:
@@ -514,7 +618,14 @@ def save_model_results(model_id, accuracy, tag_results, results, dataset):
     print(f"\nResults saved to {filename}")
     return filename
 
-def evaluate_model(model_id, dataset, max_batch_size=DEFAULT_MAX_BATCH_SIZE, tensor_parallel_size=DEFAULT_TENSOR_PARALLEL_SIZE):
+def evaluate_model(
+    model_id,
+    dataset,
+    max_batch_size=DEFAULT_MAX_BATCH_SIZE,
+    tensor_parallel_size=DEFAULT_TENSOR_PARALLEL_SIZE,
+    sanity_check="none",
+    sanity_seed=0,
+):
     """Evaluate a single model on the dataset."""
     try:
         evaluator = ModelEvaluator(
@@ -527,17 +638,24 @@ def evaluate_model(model_id, dataset, max_batch_size=DEFAULT_MAX_BATCH_SIZE, ten
         total_time = 0
         correct = 0
         total = len(dataset)
+        sanity_context = build_sanity_check_context(dataset, sanity_check, sanity_seed)
         
         # Process dataset in batches to maximize throughput
         # Start with a reasonable batch size for A100s
         effective_batch_size = max_batch_size
         
         for i in tqdm(range(0, total, effective_batch_size), desc=f"Evaluating {model_id}"):
-            batch_items = [dataset[j] for j in range(i, min(i + effective_batch_size, total))]
+            batch_items = []
+            for j in range(i, min(i + effective_batch_size, total)):
+                item = dataset[j]
+                item["eval_index"] = j
+                batch_items.append(item)
             
             # Format questions for each item in batch
             for item in batch_items:
                 item["formatted_question"] = dataset.format_multiple_choice_question(item)
+
+            batch_items = apply_sanity_check_to_batch(batch_items, dataset, sanity_context)
             
             # Process batch
             start_time = time.time()
@@ -579,6 +697,7 @@ def evaluate_model(model_id, dataset, max_batch_size=DEFAULT_MAX_BATCH_SIZE, ten
         
         print(f"\n{model_id} Evaluation Complete")
         print(f"Correct Answers: {correct}/{total} ({accuracy:.2f}% accuracy)")
+        print(f"Sanity Check: {sanity_check} (seed={sanity_seed})")
         print(f"Average Response Time: {avg_response_time:.2f}s")
         
         # Print tag-based breakdown
@@ -597,7 +716,15 @@ def evaluate_model(model_id, dataset, max_batch_size=DEFAULT_MAX_BATCH_SIZE, ten
                 print(f"{tag:<30} | {tag_accuracy:>8.2f}% | {result['correct']}/{result['total']} | {avg_tag_time:>8.2f}s")
         
         # Save results for this model
-        save_model_results(model_id, accuracy, tag_results, results, dataset)
+        save_model_results(
+            model_id,
+            accuracy,
+            tag_results,
+            results,
+            dataset,
+            sanity_check=sanity_check,
+            sanity_seed=sanity_seed,
+        )
         
         return accuracy, tag_results, results
     except Exception as e:
@@ -668,6 +795,25 @@ def parse_arguments():
         action="store_true",
         help="Trust remote code for custom models"
     )
+
+    parser.add_argument(
+        "--sanity_check",
+        choices=["none", "blank", "shuffle", "repeat_first"],
+        default="none",
+        help=(
+            "Optional image ablation to test whether the model is using visual input. "
+            "'blank' replaces every image with a black image of the same size, "
+            "'shuffle' swaps images across examples with a deterministic derangement, "
+            "and 'repeat_first' feeds the first evaluation image to every question."
+        ),
+    )
+
+    parser.add_argument(
+        "--sanity_seed",
+        type=int,
+        default=0,
+        help="Seed used for deterministic sanity-check setups such as shuffled images.",
+    )
     
     return parser.parse_args()
 
@@ -710,6 +856,7 @@ def main():
     print(f"Evaluating {len(args.models)} models on {args.dataset} ({args.split} split)")
     print(f"Subset: {subset_name}")
     print(f"Max samples: {args.max_samples}, Batch size: {args.batch_size}, Tensor parallel size: {args.tensor_parallel_size}")
+    print(f"Sanity check: {args.sanity_check} (seed={args.sanity_seed})")
     print(f"Models: {', '.join(args.models)}")
     
     # Load dataset
@@ -737,7 +884,9 @@ def main():
                 model_id, 
                 dataset, 
                 max_batch_size=args.batch_size,
-                tensor_parallel_size=args.tensor_parallel_size
+                tensor_parallel_size=args.tensor_parallel_size,
+                sanity_check=args.sanity_check,
+                sanity_seed=args.sanity_seed,
             )
             results[model_id] = model_results
             
