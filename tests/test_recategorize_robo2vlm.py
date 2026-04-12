@@ -10,11 +10,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.recategorize_robo2vlm import (
     CurationError,
+    ALLOWED_LABELS,
+    build_responses_payload,
     build_result_record,
     build_user_prompt,
     extract_original_tag,
     load_existing_results,
     make_cache_key,
+    prepare_output_directory,
     summarize_results,
     validate_curator_payload,
 )
@@ -59,6 +62,17 @@ def test_make_cache_key_changes_with_prompt_version():
     key_a = make_cache_key(record, "gpt-5-mini", "v1")
     key_b = make_cache_key(record, "gpt-5-mini", "v2")
     assert key_a != key_b
+
+
+def test_build_responses_payload_omits_temperature_for_gpt5_models():
+    payload = build_responses_payload(
+        model="gpt-5-mini",
+        prompt_version="spatial_affordance_v1",
+        record=sample_record(),
+    )
+    assert payload["model"] == "gpt-5-mini"
+    assert "temperature" not in payload
+    assert payload["metadata"]["question_id"] == "example-1"
 
 
 def test_validate_curator_payload_accepts_expected_schema():
@@ -131,3 +145,22 @@ def test_summarize_results_aggregates_labels_and_tags():
     assert summary["label_counts"]["affordance_understanding"] == 1
     assert summary["failed_count"] == 1
     assert summary["tag_breakdown"]["vqa_relative_direction"]["spatial_reasoning"] == 1
+
+
+def test_prepare_output_directory_clears_stale_non_resume_outputs(tmp_path):
+    output_dir = tmp_path / "curation"
+    by_label_dir = output_dir / "by_label"
+    by_label_dir.mkdir(parents=True)
+    (output_dir / "failed_records.jsonl").write_text("old\n", encoding="utf-8")
+    (output_dir / "summary.json").write_text("old\n", encoding="utf-8")
+    (output_dir / "manifest.json").write_text("old\n", encoding="utf-8")
+    for label in ALLOWED_LABELS:
+        (by_label_dir / f"{label}.jsonl").write_text("old\n", encoding="utf-8")
+
+    prepare_output_directory(output_dir, overwrite=False, resume=False)
+
+    assert not (output_dir / "failed_records.jsonl").exists()
+    assert not (output_dir / "summary.json").exists()
+    assert not (output_dir / "manifest.json").exists()
+    for label in ALLOWED_LABELS:
+        assert not (by_label_dir / f"{label}.jsonl").exists()

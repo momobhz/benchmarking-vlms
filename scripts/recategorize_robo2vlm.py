@@ -404,19 +404,15 @@ def validate_curator_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def call_openai_responses_api(
+def build_responses_payload(
     *,
-    api_key: str,
-    base_url: str,
     model: str,
     prompt_version: str,
     record: Dict[str, Any],
-    timeout_seconds: int,
 ) -> Dict[str, Any]:
     user_prompt = build_user_prompt(record)
-    payload = {
+    return {
         "model": model,
-        "temperature": 0,
         "input": [
             {
                 "role": "system",
@@ -445,6 +441,22 @@ def call_openai_responses_api(
             "prompt_version": prompt_version,
         },
     }
+
+
+def call_openai_responses_api(
+    *,
+    api_key: str,
+    base_url: str,
+    model: str,
+    prompt_version: str,
+    record: Dict[str, Any],
+    timeout_seconds: int,
+) -> Dict[str, Any]:
+    payload = build_responses_payload(
+        model=model,
+        prompt_version=prompt_version,
+        record=record,
+    )
     request_body = json.dumps(payload).encode("utf-8")
     request = urllib_request.Request(
         url=f"{base_url.rstrip('/')}/responses",
@@ -649,6 +661,20 @@ def prepare_output_directory(output_dir: Path, overwrite: bool, resume: bool) ->
         raise SystemExit(
             f"{results_path} already exists. Use --resume or --overwrite."
         )
+
+    # A fresh run should not append to stale outputs from an earlier failed attempt.
+    if not resume and not overwrite:
+        for stale_path in (
+            output_dir / "failed_records.jsonl",
+            output_dir / "summary.json",
+            output_dir / "manifest.json",
+        ):
+            if stale_path.exists():
+                stale_path.unlink()
+        for label in ALLOWED_LABELS:
+            stale_subset = output_dir / "by_label" / f"{label}.jsonl"
+            if stale_subset.exists():
+                stale_subset.unlink()
 
 
 def write_manifest(output_dir: Path, args: argparse.Namespace) -> None:
