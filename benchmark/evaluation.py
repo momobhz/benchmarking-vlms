@@ -7,6 +7,7 @@ import re
 import time
 import random
 import subprocess
+import sys
 import numpy as np
 from datetime import datetime
 from PIL import Image
@@ -92,8 +93,10 @@ from transformers import AutoProcessor, AutoTokenizer
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-DEFAULT_SPATIAL_INDICES_FILE = os.path.join(REPO_ROOT, "full_test_spatial_indices.json")
-DEFAULT_AFFORDANCE_INDICES_FILE = os.path.join(REPO_ROOT, "full_test_affordance_indices.json")
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from robo2vlm_curation import load_subset_source_indices
 
 # Constants
 DEFAULT_MODELS = [ 
@@ -758,15 +761,15 @@ def parse_arguments():
 
     parser.add_argument(
         "--subset",
-        choices=["full", "spatial", "affordance"],
+        choices=["full", "spatial", "affordance", "neither"],
         default="full",
-        help="Evaluate the full split or only the spatial/affordance subset defined by source indices.",
+        help="Evaluate the full split or a curated subset defined in curation_results.jsonl.",
     )
 
     parser.add_argument(
-        "--indices_file",
+        "--curation-results",
         default=None,
-        help="Optional JSON file containing source indices for subset evaluation.",
+        help="Path to curation_results.jsonl from recategorize_robo2vlm.py for subset evaluation.",
     )
     
     parser.add_argument(
@@ -823,25 +826,14 @@ def load_subset_indices(args):
     if args.subset == "full":
         return None, "full"
 
-    if args.split != "test":
+    if not args.curation_results:
         raise ValueError(
-            f"{args.subset} indices are defined for the test split, but --split was set to '{args.split}'."
+            "Subset evaluation now requires --curation-results pointing to the "
+            "curation_results.jsonl file produced by scripts/recategorize_robo2vlm.py."
         )
 
-    if args.indices_file:
-        indices_path = args.indices_file
-    elif args.subset == "spatial":
-        indices_path = DEFAULT_SPATIAL_INDICES_FILE
-    else:
-        indices_path = DEFAULT_AFFORDANCE_INDICES_FILE
-
-    with open(indices_path, "r") as handle:
-        indices = json.load(handle)
-
-    if not isinstance(indices, list) or not all(isinstance(index, int) for index in indices):
-        raise ValueError(f"Subset index file must contain a JSON list of integers: {indices_path}")
-
-    print(f"Loaded {len(indices)} {args.subset} indices from {indices_path}")
+    indices = load_subset_source_indices(args.curation_results, args.subset, split=args.split)
+    print(f"Loaded {len(indices)} {args.subset} indices from {args.curation_results}")
     return indices, args.subset
 
 def main():

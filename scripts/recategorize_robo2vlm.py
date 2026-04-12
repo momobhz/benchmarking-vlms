@@ -103,11 +103,13 @@ Your job is to assign exactly one label to each question:
 
 Decision rules:
 - Choose the dominant evaluation target, not every concept mentioned.
+- Original template tags are optional context only. They are not authoritative.
+
+Examples:
 - A question about "where is X relative to Y" is spatial_reasoning.
 - A question about "can the robot reach or stably grasp X" is affordance_understanding.
 - A question about "is the gripper open" is neither.
 - A question about phases, next action, success, or overall task is neither.
-- Original template tags are optional context only. They are not authoritative.
 
 Return only JSON that satisfies the provided schema.
 """.strip()

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Embed Robo2VLM questions and visualize category structure in 2D with UMAP.
 
-This script uses the existing spatial and affordance index files to assign
-cluster labels to the Robo2VLM split:
+This script uses `curation_results.jsonl` from `recategorize_robo2vlm.py` to
+assign cluster labels to the Robo2VLM split:
 
 - spatial_reasoning
 - affordance_understanding
@@ -14,6 +14,7 @@ and a scatter plot.
 
 Example:
     python3 scripts/visualize_robo2vlm_question_clusters.py \
+        --curation-results outputs/robo2vlm_spatial_affordance/curation_results.jsonl \
         --output-dir outputs/robo2vlm_umap
 
 Dependencies:
@@ -25,6 +26,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Iterable
@@ -32,20 +34,18 @@ from typing import Iterable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from robo2vlm_curation import LABEL_ORDER, label_for_source_index, load_label_by_source_index
 
 DEFAULT_DATASET_NAME = "keplerccc/Robo2VLM-1"
 DEFAULT_SPLIT = "test"
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-
-SPATIAL_LABEL = "spatial_reasoning"
-AFFORDANCE_LABEL = "affordance_understanding"
-NEITHER_LABEL = "neither"
-
-LABEL_ORDER = [SPATIAL_LABEL, AFFORDANCE_LABEL, NEITHER_LABEL]
 LABEL_COLORS = {
-    SPATIAL_LABEL: "#1f77b4",
-    AFFORDANCE_LABEL: "#ff7f0e",
-    NEITHER_LABEL: "#7f7f7f",
+    "spatial_reasoning": "#1f77b4",
+    "affordance_understanding": "#ff7f0e",
+    "neither": "#7f7f7f",
 }
 
 
@@ -64,16 +64,10 @@ def parse_args() -> argparse.Namespace:
         help="Dataset split to visualize (default: %(default)s).",
     )
     parser.add_argument(
-        "--spatial-indices",
+        "--curation-results",
         type=Path,
-        default=REPO_ROOT / "full_test_spatial_indices.json",
-        help="JSON file containing source indices labeled as spatial reasoning.",
-    )
-    parser.add_argument(
-        "--affordance-indices",
-        type=Path,
-        default=REPO_ROOT / "full_test_affordance_indices.json",
-        help="JSON file containing source indices labeled as affordance understanding.",
+        required=True,
+        help="JSONL file produced by recategorize_robo2vlm.py for the requested split.",
     )
     parser.add_argument(
         "--output-dir",
@@ -183,36 +177,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_index_set(path: Path) -> set[int]:
-    with path.open("r", encoding="utf-8") as handle:
-        raw = json.load(handle)
-    if not isinstance(raw, list):
-        raise ValueError(f"Expected {path} to contain a JSON list of source indices.")
-    return {int(index) for index in raw}
-
-
-def validate_label_sets(spatial_indices: set[int], affordance_indices: set[int]) -> None:
-    overlap = spatial_indices & affordance_indices
-    if overlap:
-        head = sorted(overlap)[:10]
-        raise ValueError(
-            "Spatial and affordance index files overlap. "
-            f"First overlapping indices: {head}"
-        )
-
-
-def label_for_index(
-    source_index: int,
-    spatial_indices: set[int],
-    affordance_indices: set[int],
-) -> str:
-    if source_index in spatial_indices:
-        return SPATIAL_LABEL
-    if source_index in affordance_indices:
-        return AFFORDANCE_LABEL
-    return NEITHER_LABEL
-
-
 def sanitize_name(value: str) -> str:
     return "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in value)
 
@@ -220,8 +184,7 @@ def sanitize_name(value: str) -> str:
 def load_question_records(
     dataset_name: str,
     split: str,
-    spatial_indices: set[int],
-    affordance_indices: set[int],
+    label_by_source_index: dict[int, str],
     streaming: bool,
     max_samples: int | None = None,
 ) -> list[dict[str, object]]:
@@ -247,11 +210,7 @@ def load_question_records(
                 "source_index": source_index,
                 "id": row.get("id", str(source_index)),
                 "question": row["question"],
-                "label": label_for_index(
-                    source_index=source_index,
-                    spatial_indices=spatial_indices,
-                    affordance_indices=affordance_indices,
-                ),
+                "label": label_for_source_index(source_index, label_by_source_index),
             }
         )
     return records
@@ -434,8 +393,7 @@ def write_summary(
         "embedding_shape": list(embedding_shape),
         "streaming": args.streaming,
         "label_counts": {label: counts.get(label, 0) for label in LABEL_ORDER},
-        "spatial_indices_file": str(args.spatial_indices),
-        "affordance_indices_file": str(args.affordance_indices),
+        "curation_results_file": str(args.curation_results),
         "umap": {
             "n_neighbors": args.umap_neighbors,
             "min_dist": args.umap_min_dist,
@@ -454,15 +412,12 @@ def main() -> None:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    spatial_indices = load_index_set(args.spatial_indices)
-    affordance_indices = load_index_set(args.affordance_indices)
-    validate_label_sets(spatial_indices, affordance_indices)
+    label_by_source_index = load_label_by_source_index(args.curation_results, split=args.split)
 
     records = load_question_records(
         dataset_name=args.dataset_name,
         split=args.split,
-        spatial_indices=spatial_indices,
-        affordance_indices=affordance_indices,
+        label_by_source_index=label_by_source_index,
         streaming=args.streaming,
         max_samples=args.max_samples,
     )

@@ -49,6 +49,9 @@ docker run --gpus all -v $(pwd):/workspace robo2vlm
 # Evaluate models
 cd benchmark/
 python evaluation.py --models Qwen/Qwen2.5-VL-7B-Instruct --max_samples 20 --batch_size 1 --tensor_parallel_size 1
+
+# Evaluate a curated subset after running scripts/recategorize_robo2vlm.py
+python evaluation.py --models Qwen/Qwen2.5-VL-7B-Instruct --subset spatial --curation-results ../outputs/robo2vlm_spatial_affordance/curation_results.jsonl --max_samples 20 --batch_size 1 --tensor_parallel_size 1
 ```
 
 ## ETH Cluster Notes

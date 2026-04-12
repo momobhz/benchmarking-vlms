@@ -58,7 +58,7 @@ Use `scripts/recategorize_robo2vlm.py` to relabel Robo2VLM questions for the cou
 
 The script reads the published dataset from Hugging Face, sends each question to an OpenAI model using the Responses API with structured JSON output, and writes:
 
-- `curation_results.jsonl`: labeled records with rationale, confidence, and prompt version
+- `curation_results.jsonl`: canonical labeled records with rationale, confidence, and prompt version
 - `by_label/*.jsonl`: filtered subsets for each new category
 - `summary.json`: aggregate counts and original-tag breakdowns when tags are available
 
@@ -77,6 +77,7 @@ python3 scripts/recategorize_robo2vlm.py \
 Notes:
 
 - Install the Hugging Face `datasets` package before running the curator.
+- `curation_results.jsonl` is the source of truth for downstream scripts.
 - The output keeps source IDs instead of duplicating image payloads; join on `id` with the original dataset when you want to benchmark VLMs on the filtered subsets.
 
 ## Question Embedding Visualization
@@ -88,12 +89,12 @@ Example:
 
 ```bash
 python3 scripts/visualize_robo2vlm_question_clusters.py \
+  --curation-results outputs/robo2vlm_spatial_affordance/curation_results.jsonl \
   --output-dir outputs/robo2vlm_umap \
   --embedding-model sentence-transformers/all-MiniLM-L6-v2
 ```
 
-The script uses `full_test_spatial_indices.json` and `full_test_affordance_indices.json`
-by default, derives `neither` from the remaining questions in the split, and writes:
+The script reads labels from `curation_results.jsonl` and writes:
 
 - `*_umap.csv`: one row per question with `source_index`, `id`, `label`, and 2D coordinates
 - `*_umap.png`: scatter plot colored by category
