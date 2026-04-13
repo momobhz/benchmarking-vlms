@@ -80,6 +80,16 @@ Notes:
 - `curation_results.jsonl` is the source of truth for downstream scripts.
 - The output keeps source IDs instead of duplicating image payloads; join on `id` with the original dataset when you want to benchmark VLMs on the filtered subsets.
 
+If you need a deterministic cleanup pass for known misclassifications, use
+`scripts/relabel_robo2vlm_goal_state_questions.py`. It rewrites
+`curation_results.jsonl`, regenerates `by_label/*.jsonl`, and updates
+`summary.json` for any question whose text contains the goal-state phrase:
+
+```bash
+python3 scripts/relabel_robo2vlm_goal_state_questions.py \
+  --output-dir outputs/robo2vlm_spatial_affordance
+```
+
 ## Question Embedding Visualization
 
 Use `scripts/visualize_robo2vlm_question_clusters.py` to verify the category split by
