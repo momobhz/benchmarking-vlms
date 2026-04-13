@@ -30,8 +30,8 @@ def test_load_projection_rows_parses_types(tmp_path):
     csv_path = tmp_path / "good.csv"
     csv_path.write_text(
         (
-            "source_index,id,label,question,umap_x,umap_y\n"
-            "7,abc,spatial_reasoning,Where is the mug?,1.25,-2.5\n"
+            "source_index,id,label,subcategory,question,umap_x,umap_y\n"
+            "7,abc,spatial_reasoning,distance,Where is the mug?,1.25,-2.5\n"
         ),
         encoding="utf-8",
     )
@@ -43,6 +43,7 @@ def test_load_projection_rows_parses_types(tmp_path):
             "source_index": 7,
             "id": "abc",
             "label": "spatial_reasoning",
+            "subcategory": "distance",
             "question": "Where is the mug?",
             "umap_x": 1.25,
             "umap_y": -2.5,

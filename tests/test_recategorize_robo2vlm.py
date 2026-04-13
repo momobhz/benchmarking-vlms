@@ -125,6 +125,7 @@ def test_build_result_record_appends_curation_fields():
         latency_seconds=1.2345,
     )
     assert result["curation_label"] == "affordance_understanding"
+    assert result["curation_subcategory"] is None
     assert result["curation_attempts"] == 2
     assert result["curation_latency_seconds"] == 1.2345
 
@@ -145,6 +146,14 @@ def test_summarize_results_aggregates_labels_and_tags():
     assert summary["label_counts"]["affordance_understanding"] == 1
     assert summary["failed_count"] == 1
     assert summary["tag_breakdown"]["vqa_relative_direction"]["spatial_reasoning"] == 1
+    assert summary["subcategory_counts"]["spatial_reasoning"] == {
+        "distance": 0,
+        "direction": 0,
+        "none": 0,
+    }
+    assert summary["subcategory_rules"]["affordance_understanding"]["object_blockage"] == (
+        "obstacle blocking"
+    )
 
 
 def test_prepare_output_directory_clears_stale_non_resume_outputs(tmp_path):

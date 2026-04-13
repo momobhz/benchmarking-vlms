@@ -761,7 +761,18 @@ def parse_arguments():
 
     parser.add_argument(
         "--subset",
-        choices=["full", "spatial", "affordance", "neither"],
+        choices=[
+            "full",
+            "spatial",
+            "affordance",
+            "neither",
+            "spatial_distance",
+            "spatial_direction",
+            "spatial_none",
+            "affordance_grasp_stability",
+            "affordance_object_blockage",
+            "affordance_none",
+        ],
         default="full",
         help="Evaluate the full split or a curated subset defined in curation_results.jsonl.",
     )

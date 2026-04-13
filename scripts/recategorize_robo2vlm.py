@@ -30,15 +30,17 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tupl
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from robo2vlm_curation import ALLOWED_LABELS, LABEL_TO_SUBCATEGORY_ORDER
+
 
 DEFAULT_DATASET_NAME = "keplerccc/Robo2VLM-1"
 DEFAULT_MODEL = "gpt-5-mini"
 DEFAULT_PROMPT_VERSION = "spatial_affordance_v1"
-ALLOWED_LABELS = (
-    "spatial_reasoning",
-    "affordance_understanding",
-    "neither",
-)
 SKIPPED_SOURCE_FIELDS = {
     "id",
     "image",
@@ -595,6 +597,7 @@ def build_result_record(
         {
             "cache_key": cache_key,
             "curation_label": curated["label"],
+            "curation_subcategory": None,
             "curation_confidence": curated["confidence"],
             "curation_rationale": curated["rationale"],
             "curation_signals": curated["signals"],
@@ -615,6 +618,10 @@ def summarize_results(
 ) -> Dict[str, Any]:
     label_counts = {label: 0 for label in ALLOWED_LABELS}
     confidence_totals = {label: 0.0 for label in ALLOWED_LABELS}
+    subcategory_counts = {
+        label: {subcategory: 0 for subcategory in LABEL_TO_SUBCATEGORY_ORDER[label]}
+        for label in ALLOWED_LABELS
+    }
     tag_breakdown: Dict[str, Dict[str, int]] = {}
 
     for result in results:
@@ -622,6 +629,9 @@ def summarize_results(
         if label in label_counts:
             label_counts[label] += 1
             confidence_totals[label] += float(result.get("curation_confidence", 0.0))
+            subcategory = result.get("curation_subcategory")
+            if subcategory in subcategory_counts[label]:
+                subcategory_counts[label][subcategory] += 1
 
         tag = result.get("original_tag") or "unknown"
         tag_counts = tag_breakdown.setdefault(
@@ -646,6 +656,17 @@ def summarize_results(
         "failed_count": failed_count,
         "label_counts": label_counts,
         "label_confidence_means": label_confidence_means,
+        "subcategory_counts": subcategory_counts,
+        "subcategory_rules": {
+            "spatial_reasoning": {
+                "distance": "which colored point",
+                "direction": "which colored arrow",
+            },
+            "affordance_understanding": {
+                "grasp_stability": "stable",
+                "object_blockage": "obstacle blocking",
+            },
+        },
         "tag_breakdown": tag_breakdown,
     }
 
@@ -675,6 +696,9 @@ def prepare_output_directory(output_dir: Path, overwrite: bool, resume: bool) ->
             stale_subset = output_dir / "by_label" / f"{label}.jsonl"
             if stale_subset.exists():
                 stale_subset.unlink()
+            stale_subcategory_dir = output_dir / "by_label" / label
+            if stale_subcategory_dir.exists():
+                shutil.rmtree(stale_subcategory_dir)
 
 
 def write_manifest(output_dir: Path, args: argparse.Namespace) -> None:

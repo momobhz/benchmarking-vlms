@@ -90,6 +90,26 @@ python3 scripts/relabel_robo2vlm_goal_state_questions.py \
   --output-dir outputs/robo2vlm_spatial_affordance
 ```
 
+To assign deterministic subcategories on top of the existing top-level labels,
+run:
+
+```bash
+python3 scripts/subcategorize_robo2vlm_questions.py \
+  --output-dir outputs/robo2vlm_spatial_affordance
+```
+
+This adds `curation_subcategory` to each record and creates nested subsets:
+
+- `by_label/spatial_reasoning/{distance,direction,none}.jsonl`
+- `by_label/affordance_understanding/{grasp_stability,object_blockage,none}.jsonl`
+
+For the ETH student cluster, run the deterministic post-processing pipeline
+without re-calling the LLM:
+
+```bash
+sbatch run_robo2vlm_question_postprocess.sh
+```
+
 ## Question Embedding Visualization
 
 Use `scripts/visualize_robo2vlm_question_clusters.py` to verify the category split by
@@ -101,13 +121,14 @@ Example:
 python3 scripts/visualize_robo2vlm_question_clusters.py \
   --curation-results outputs/robo2vlm_spatial_affordance/curation_results.jsonl \
   --output-dir outputs/robo2vlm_umap \
-  --embedding-model sentence-transformers/all-MiniLM-L6-v2
+  --embedding-model sentence-transformers/all-MiniLM-L6-v2 \
+  --group-by subcategory
 ```
 
 The script reads labels from `curation_results.jsonl` and writes:
 
-- `*_umap.csv`: one row per question with `source_index`, `id`, `label`, and 2D coordinates
-- `*_umap.png`: scatter plot colored by category
+- `*_umap.csv`: one row per question with `source_index`, `id`, `label`, `subcategory`, and 2D coordinates
+- `*_umap.png`: scatter plot colored by the requested grouping
 - `*_umap_summary.json`: dataset, label counts, and projection settings
 
 Notes:
@@ -125,7 +146,8 @@ Example:
 
 ```bash
 python3 scripts/plot_robo2vlm_question_clusters.py \
-  --input-csv outputs/robo2vlm_umap/test_sentence-transformers_all-MiniLM-L6-v2_umap.csv
+  --input-csv outputs/robo2vlm_umap/test_sentence-transformers_all-MiniLM-L6-v2_umap.csv \
+  --color-by subcategory
 ```
 
 This writes `*_interactive.html` next to the input CSV by default.

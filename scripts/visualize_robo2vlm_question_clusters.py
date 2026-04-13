@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Embed Robo2VLM questions and visualize category structure in 2D with UMAP.
+"""Embed Robo2VLM questions and visualize Robo2VLM label structure in 2D with UMAP.
 
 This script uses `curation_results.jsonl` from `recategorize_robo2vlm.py` to
-assign cluster labels to the Robo2VLM split:
+assign cluster labels or subcategories to the Robo2VLM split:
 
 - spatial_reasoning
 - affordance_understanding
@@ -37,7 +37,15 @@ REPO_ROOT = SCRIPT_DIR.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from robo2vlm_curation import LABEL_ORDER, label_for_source_index, load_label_by_source_index
+from robo2vlm_curation import (
+    GROUP_BY_CHOICES,
+    LABEL_ORDER,
+    NO_SUBCATEGORY_GROUP,
+    SUBCATEGORY_ORDER,
+    label_for_source_index,
+    load_label_by_source_index,
+    load_subcategory_by_source_index,
+)
 
 DEFAULT_DATASET_NAME = "keplerccc/Robo2VLM-1"
 DEFAULT_SPLIT = "test"
@@ -46,6 +54,14 @@ LABEL_COLORS = {
     "spatial_reasoning": "#1f77b4",
     "affordance_understanding": "#ff7f0e",
     "neither": "#7f7f7f",
+}
+SUBCATEGORY_COLORS = {
+    "distance": "#2b8cbe",
+    "direction": "#8856a7",
+    "grasp_stability": "#31a354",
+    "object_blockage": "#e6550d",
+    "none": "#969696",
+    NO_SUBCATEGORY_GROUP: "#c7c7c7",
 }
 
 
@@ -174,6 +190,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also save the dense question embeddings as a .npy file.",
     )
+    parser.add_argument(
+        "--group-by",
+        choices=GROUP_BY_CHOICES,
+        default="label",
+        help="Color/group the plots by the top-level label or deterministic subcategory.",
+    )
     return parser.parse_args()
 
 
@@ -185,6 +207,7 @@ def load_question_records(
     dataset_name: str,
     split: str,
     label_by_source_index: dict[int, str],
+    subcategory_by_source_index: dict[int, str | None],
     streaming: bool,
     max_samples: int | None = None,
 ) -> list[dict[str, object]]:
@@ -205,15 +228,37 @@ def load_question_records(
     for source_index, row in enumerate(dataset):
         if streaming and max_samples is not None and source_index >= max_samples:
             break
+        label = label_for_source_index(source_index, label_by_source_index)
+        if source_index not in subcategory_by_source_index:
+            raise ValueError(
+                f"Missing curation subcategory for source_index {source_index}. "
+                "Regenerate or complete the curation_results.jsonl file for this split."
+            )
         records.append(
             {
                 "source_index": source_index,
                 "id": row.get("id", str(source_index)),
                 "question": row["question"],
-                "label": label_for_source_index(source_index, label_by_source_index),
+                "label": label,
+                "subcategory": subcategory_by_source_index[source_index],
             }
         )
     return records
+
+
+def record_group_value(record: dict[str, object], group_by: str) -> str:
+    if group_by == "label":
+        return str(record["label"])
+    subcategory = record.get("subcategory")
+    return str(subcategory) if isinstance(subcategory, str) else NO_SUBCATEGORY_GROUP
+
+
+def group_order(group_by: str) -> list[str]:
+    return LABEL_ORDER if group_by == "label" else SUBCATEGORY_ORDER
+
+
+def group_colors(group_by: str) -> dict[str, str]:
+    return LABEL_COLORS if group_by == "label" else SUBCATEGORY_COLORS
 
 
 def infer_device(device: str | None) -> str | None:
@@ -298,13 +343,16 @@ def write_projection_csv(records: list[dict[str, object]], coordinates, output_p
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["source_index", "id", "label", "question", "umap_x", "umap_y"])
+        writer.writerow(
+            ["source_index", "id", "label", "subcategory", "question", "umap_x", "umap_y"]
+        )
         for record, (x_coord, y_coord) in zip(records, coordinates):
             writer.writerow(
                 [
                     record["source_index"],
                     record["id"],
                     record["label"],
+                    record["subcategory"] or "",
                     record["question"],
                     float(x_coord),
                     float(y_coord),
@@ -316,6 +364,7 @@ def plot_projection(
     records: list[dict[str, object]],
     coordinates,
     output_path: Path,
+    group_by: str,
     point_size: float,
     point_alpha: float,
     figure_width: float,
@@ -332,14 +381,15 @@ def plot_projection(
             "'pip install matplotlib'."
         ) from exc
 
-    labels = np.asarray([record["label"] for record in records], dtype=object)
+    grouped_labels = np.asarray([record_group_value(record, group_by) for record in records], dtype=object)
     rng = np.random.default_rng(random_state)
     order = rng.permutation(len(records))
     shuffled_coordinates = coordinates[order]
-    shuffled_labels = labels[order]
+    shuffled_labels = grouped_labels[order]
+    colors = group_colors(group_by)
 
     fig, ax = plt.subplots(figsize=(figure_width, figure_height), constrained_layout=True)
-    for label in LABEL_ORDER:
+    for label in group_order(group_by):
         mask = shuffled_labels == label
         if not np.any(mask):
             continue
@@ -348,7 +398,7 @@ def plot_projection(
             shuffled_coordinates[mask, 1],
             s=point_size,
             alpha=point_alpha,
-            c=LABEL_COLORS[label],
+            c=colors[label],
             label=label.replace("_", " "),
             linewidths=0,
             rasterized=True,
@@ -361,13 +411,13 @@ def plot_projection(
             label.replace("_", "\n"),
             fontsize=10,
             fontweight="bold",
-            color=LABEL_COLORS[label],
+            color=colors[label],
             ha="center",
             va="center",
             bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none", "pad": 2},
         )
 
-    ax.set_title("Robo2VLM Question Embeddings Projected with UMAP")
+    ax.set_title(f"Robo2VLM Question Embeddings Projected with UMAP ({group_by})")
     ax.set_xlabel("UMAP-1")
     ax.set_ylabel("UMAP-2")
     ax.legend(frameon=True)
@@ -384,7 +434,9 @@ def write_summary(
     embedding_shape: tuple[int, ...],
     output_path: Path,
 ) -> None:
-    counts = Counter(record["label"] for record in records)
+    label_counts = Counter(record["label"] for record in records)
+    subcategory_counts = Counter(record_group_value(record, "subcategory") for record in records)
+    counts = Counter(record_group_value(record, args.group_by) for record in records)
     summary = {
         "dataset_name": args.dataset_name,
         "split": args.split,
@@ -392,7 +444,12 @@ def write_summary(
         "num_questions": len(records),
         "embedding_shape": list(embedding_shape),
         "streaming": args.streaming,
-        "label_counts": {label: counts.get(label, 0) for label in LABEL_ORDER},
+        "group_by": args.group_by,
+        "group_counts": {label: counts.get(label, 0) for label in group_order(args.group_by)},
+        "label_counts": {label: label_counts.get(label, 0) for label in LABEL_ORDER},
+        "subcategory_counts": {
+            label: subcategory_counts.get(label, 0) for label in SUBCATEGORY_ORDER
+        },
         "curation_results_file": str(args.curation_results),
         "umap": {
             "n_neighbors": args.umap_neighbors,
@@ -413,11 +470,16 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     label_by_source_index = load_label_by_source_index(args.curation_results, split=args.split)
+    subcategory_by_source_index = load_subcategory_by_source_index(
+        args.curation_results,
+        split=args.split,
+    )
 
     records = load_question_records(
         dataset_name=args.dataset_name,
         split=args.split,
         label_by_source_index=label_by_source_index,
+        subcategory_by_source_index=subcategory_by_source_index,
         streaming=args.streaming,
         max_samples=args.max_samples,
     )
@@ -454,6 +516,7 @@ def main() -> None:
         records=records,
         coordinates=coordinates,
         output_path=plot_path,
+        group_by=args.group_by,
         point_size=args.point_size,
         point_alpha=args.point_alpha,
         figure_width=args.figure_width,

@@ -27,6 +27,7 @@ def test_load_question_records_requires_curation_for_each_source_index(monkeypat
             dataset_name="dummy",
             split="test",
             label_by_source_index={},
+            subcategory_by_source_index={},
             streaming=True,
             max_samples=1,
         )
@@ -65,9 +66,15 @@ def test_load_question_records_streaming_respects_max_samples(monkeypatch):
             1: SPATIAL_LABEL,
             2: AFFORDANCE_LABEL,
         },
+        subcategory_by_source_index={
+            0: None,
+            1: "distance",
+            2: "grasp_stability",
+        },
         streaming=True,
         max_samples=2,
     )
 
     assert [record["id"] for record in records] == ["a", "b"]
     assert [record["label"] for record in records] == [NEITHER_LABEL, SPATIAL_LABEL]
+    assert [record["subcategory"] for record in records] == [None, "distance"]
