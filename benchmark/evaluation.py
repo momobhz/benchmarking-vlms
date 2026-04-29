@@ -88,7 +88,7 @@ def create_test_prompt(demo_prompt, query, response):
 from vllm import LLM, SamplingParams
 
 # Model-specific imports for handling images
-from transformers import AutoProcessor, AutoTokenizer
+from transformers import AutoProcessor, AutoTokenizer, pipeline
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -116,6 +116,12 @@ DEFAULT_MODELS = [
                   ]
 DEFAULT_MAX_BATCH_SIZE = 96
 DEFAULT_TENSOR_PARALLEL_SIZE = 4  # Use all 8 A100 GPUs
+DEFAULT_DEPTH_MODEL = "depth-anything/Depth-Anything-V2-Small-hf"
+DEPTH_IMAGE_MODE_INSTRUCTION = (
+    "The provided image has two side-by-side panels: the left panel is the "
+    "original RGB image, and the right panel is an estimated depth map "
+    "generated from that RGB image. Use both panels when helpful."
+)
 
 # Initialize the answer extraction model globally for reuse
 ANSWER_EXTRACTOR = None
@@ -245,6 +251,102 @@ def create_blank_image_like(image: Any) -> Image.Image:
     """Create a blank image that preserves the source image dimensions."""
     source_image = ensure_pil_image(image)
     return Image.new("RGB", source_image.size, color=(0, 0, 0))
+
+
+class DepthImageAugmenter:
+    """Create RGB + estimated-depth composite images without writing to disk."""
+
+    def __init__(self, model_name: str, device: str):
+        self.model_name = model_name
+        self.device = device
+        self.pipe = None
+
+    def _resolve_pipeline_device(self):
+        if self.device == "auto":
+            return 0 if torch.cuda.is_available() else -1
+        if self.device in ("cpu", "-1"):
+            return -1
+        if self.device == "cuda":
+            return 0
+        if self.device.startswith("cuda:"):
+            return int(self.device.split(":", 1)[1])
+
+        try:
+            return int(self.device)
+        except ValueError:
+            return self.device
+
+    def _ensure_pipe(self):
+        if self.pipe is None:
+            pipeline_device = self._resolve_pipeline_device()
+            print(
+                f"Initializing depth-estimation pipeline {self.model_name} "
+                f"on device {self.device}..."
+            )
+            self.pipe = pipeline(
+                "depth-estimation",
+                model=self.model_name,
+                device=pipeline_device,
+            )
+        return self.pipe
+
+    def augment_image(self, image: Any) -> Image.Image:
+        original_image = ensure_pil_image(image)
+        result = self._ensure_pipe()(original_image)
+        depth_image = result["depth"].convert("RGB")
+
+        if depth_image.size != original_image.size:
+            try:
+                resize_filter = Image.Resampling.BILINEAR
+            except AttributeError:
+                resize_filter = Image.BILINEAR
+            depth_image = depth_image.resize(original_image.size, resize_filter)
+
+        total_width = original_image.width + depth_image.width
+        max_height = max(original_image.height, depth_image.height)
+        composite_image = Image.new("RGB", (total_width, max_height))
+        composite_image.paste(original_image, (0, 0))
+        composite_image.paste(depth_image, (original_image.width, 0))
+        return composite_image
+
+
+def format_question_for_image_mode(question: str, image_mode: str) -> str:
+    """Add image-layout context when using non-standard visual inputs."""
+    if image_mode == "rgb":
+        return question
+    if image_mode == "rgb_depth":
+        return f"{DEPTH_IMAGE_MODE_INSTRUCTION}\n\n{question}"
+    raise ValueError(f"Unsupported image mode: {image_mode}")
+
+
+def apply_image_mode_to_batch(
+    batch_items: List[Dict[str, Any]],
+    image_mode: str,
+    depth_augmenter: Any = None,
+) -> List[Dict[str, Any]]:
+    """Apply the requested in-memory image transform to evaluation items."""
+    transformed_items = [dict(item) for item in batch_items]
+
+    if image_mode == "rgb":
+        for item in transformed_items:
+            item["image_mode"] = image_mode
+        return transformed_items
+
+    if image_mode == "rgb_depth":
+        if depth_augmenter is None:
+            raise ValueError("rgb_depth image mode requires a depth augmenter.")
+
+        for item in transformed_items:
+            item["image"] = depth_augmenter.augment_image(item["image"])
+            item["formatted_question"] = format_question_for_image_mode(
+                item["formatted_question"],
+                image_mode,
+            )
+            item["image_mode"] = image_mode
+            item["depth_model"] = depth_augmenter.model_name
+        return transformed_items
+
+    raise ValueError(f"Unsupported image mode: {image_mode}")
 
 
 def build_deranged_index_mapping(num_items: int, seed: int) -> List[int]:
@@ -558,6 +660,8 @@ class ModelEvaluator:
                 "source_index": batch_data[i].get("source_index"),
                 "image_source_index": batch_data[i].get("image_source_index"),
                 "sanity_check": batch_data[i].get("sanity_check", "none"),
+                "image_mode": batch_data[i].get("image_mode", "rgb"),
+                "depth_model": batch_data[i].get("depth_model"),
                 "response_time": batch_elapsed / len(outputs),
             })
         
@@ -584,7 +688,18 @@ def extract_letter_answer(queries, predicted_answers):
 
     return [choice_answer_clean(answer) for answer in predicted_answers]
 
-def save_model_results(model_id, accuracy, tag_results, results, dataset, sanity_check="none", sanity_seed=0):
+def save_model_results(
+    model_id,
+    accuracy,
+    tag_results,
+    results,
+    dataset,
+    sanity_check="none",
+    sanity_seed=0,
+    image_mode="rgb",
+    depth_model=None,
+    depth_device=None,
+):
     """Save results for a single model to a JSON file."""
     # Create results directory if it doesn't exist
     results_dir = os.path.join(SCRIPT_DIR, "results")
@@ -598,6 +713,9 @@ def save_model_results(model_id, accuracy, tag_results, results, dataset, sanity
         "subset": dataset.subset_name,
         "sanity_check": sanity_check,
         "sanity_seed": sanity_seed,
+        "image_mode": image_mode,
+        "depth_model": depth_model if image_mode == "rgb_depth" else None,
+        "depth_device": depth_device if image_mode == "rgb_depth" else None,
         "accuracy": accuracy,
         "total_examples": len(results),
         "tag_accuracies": {
@@ -610,9 +728,11 @@ def save_model_results(model_id, accuracy, tag_results, results, dataset, sanity
     # Generate filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     sanity_suffix = f"_{sanity_check}" if sanity_check != "none" else ""
+    image_mode_suffix = f"_{image_mode}" if image_mode != "rgb" else ""
     filename = os.path.join(
         results_dir,
-        f"{model_id.split('/')[-1]}_{dataset.subset_name}{sanity_suffix}_{timestamp}.json",
+        f"{model_id.split('/')[-1]}_{dataset.subset_name}"
+        f"{sanity_suffix}{image_mode_suffix}_{timestamp}.json",
     )
     
     with open(filename, "w") as f:
@@ -628,6 +748,9 @@ def evaluate_model(
     tensor_parallel_size=DEFAULT_TENSOR_PARALLEL_SIZE,
     sanity_check="none",
     sanity_seed=0,
+    image_mode="rgb",
+    depth_model=DEFAULT_DEPTH_MODEL,
+    depth_device="cpu",
 ):
     """Evaluate a single model on the dataset."""
     try:
@@ -635,6 +758,11 @@ def evaluate_model(
             model_id, 
             tensor_parallel_size=tensor_parallel_size
         )
+        depth_augmenter = None
+        if image_mode == "rgb_depth":
+            depth_augmenter = DepthImageAugmenter(depth_model, depth_device)
+        elif image_mode != "rgb":
+            raise ValueError(f"Unsupported image mode: {image_mode}")
         
         results = []
         tag_results = {}
@@ -659,6 +787,7 @@ def evaluate_model(
                 item["formatted_question"] = dataset.format_multiple_choice_question(item)
 
             batch_items = apply_sanity_check_to_batch(batch_items, dataset, sanity_context)
+            batch_items = apply_image_mode_to_batch(batch_items, image_mode, depth_augmenter)
             
             # Process batch
             start_time = time.time()
@@ -701,6 +830,7 @@ def evaluate_model(
         print(f"\n{model_id} Evaluation Complete")
         print(f"Correct Answers: {correct}/{total} ({accuracy:.2f}% accuracy)")
         print(f"Sanity Check: {sanity_check} (seed={sanity_seed})")
+        print(f"Image Mode: {image_mode}")
         print(f"Average Response Time: {avg_response_time:.2f}s")
         
         # Print tag-based breakdown
@@ -727,6 +857,9 @@ def evaluate_model(
             dataset,
             sanity_check=sanity_check,
             sanity_seed=sanity_seed,
+            image_mode=image_mode,
+            depth_model=depth_model,
+            depth_device=depth_device,
         )
         
         return accuracy, tag_results, results
@@ -757,6 +890,38 @@ def parse_arguments():
         "--split", 
         default="test",
         help="Dataset split to use (default: test)"
+    )
+
+    parser.add_argument(
+        "--image_mode",
+        "--image-mode",
+        dest="image_mode",
+        choices=["rgb", "rgb_depth"],
+        default="rgb",
+        help=(
+            "Image input mode. 'rgb' uses the dataset image unchanged. "
+            "'rgb_depth' creates an in-memory side-by-side RGB/depth image "
+            "for each sample."
+        ),
+    )
+
+    parser.add_argument(
+        "--depth_model",
+        "--depth-model",
+        dest="depth_model",
+        default=DEFAULT_DEPTH_MODEL,
+        help="Depth-estimation model used when --image_mode rgb_depth is selected.",
+    )
+
+    parser.add_argument(
+        "--depth_device",
+        "--depth-device",
+        dest="depth_device",
+        default="cpu",
+        help=(
+            "Device for the depth-estimation pipeline when --image_mode rgb_depth "
+            "is selected. Use 'cpu', 'cuda', 'cuda:0', an integer device id, or 'auto'."
+        ),
     )
 
     parser.add_argument(
@@ -860,6 +1025,9 @@ def main():
     print(f"Subset: {subset_name}")
     print(f"Max samples: {args.max_samples}, Batch size: {args.batch_size}, Tensor parallel size: {args.tensor_parallel_size}")
     print(f"Sanity check: {args.sanity_check} (seed={args.sanity_seed})")
+    print(f"Image mode: {args.image_mode}")
+    if args.image_mode == "rgb_depth":
+        print(f"Depth model: {args.depth_model} on {args.depth_device}")
     print(f"Models: {', '.join(args.models)}")
     
     # Load dataset
@@ -890,6 +1058,9 @@ def main():
                 tensor_parallel_size=args.tensor_parallel_size,
                 sanity_check=args.sanity_check,
                 sanity_seed=args.sanity_seed,
+                image_mode=args.image_mode,
+                depth_model=args.depth_model,
+                depth_device=args.depth_device,
             )
             results[model_id] = model_results
             
