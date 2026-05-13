@@ -15,6 +15,7 @@ documents why they exist.
 - Slurm jobs must set the course/project account and an explicit runtime. The
   scripts use `#SBATCH --account=3dv`, `#SBATCH --time=...`, and
   `#SBATCH --gpus=5060ti:1`.
+- The maintained Slurm entrypoints request `#SBATCH --cpus-per-task=1`.
 - The Slurm entrypoints source modules with `. /etc/profile.d/modules.sh` and
   load `cuda/13.0` immediately after the `#SBATCH` block, matching the ETH
   student cluster documentation.

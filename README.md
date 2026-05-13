@@ -121,9 +121,9 @@ The evaluator in `benchmark/` uses vLLM and should be run on a compatible GPU
 node. The Slurm scripts default to the ETH 3DV student cluster paths and cache
 locations, but all important paths can be overridden with environment variables.
 The scripts follow the student cluster guidance: they set `--account`, `--time`,
-request `--gpus=5060ti:1`, load `/etc/profile.d/modules.sh` immediately after
-the `#SBATCH` block, activate `cuda/13.0`, and keep the cluster-provided
-`$TMPDIR` for local temporary files.
+request `--gpus=5060ti:1` and `--cpus-per-task=1`, load
+`/etc/profile.d/modules.sh` immediately after the `#SBATCH` block, activate
+`cuda/13.0`, and keep the cluster-provided `$TMPDIR` for local temporary files.
 
 ```bash
 TEAM_ROOT=/work/courses/3dv/team43 \
