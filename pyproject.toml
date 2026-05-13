@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 eval = [
+  "timm",
   "torch",
   "transformers",
   "vllm",

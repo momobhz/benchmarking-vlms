@@ -103,7 +103,8 @@ if [ "$DRY_RUN" = "1" ]; then
   COMMAND+=(--dry-run)
 fi
 
-printf 'Running workflow command:\n  %q' "${COMMAND[@]}"
+printf 'Running workflow command:\n  '
+printf '%q ' "${COMMAND[@]}"
 printf '\n'
 
 "${COMMAND[@]}"

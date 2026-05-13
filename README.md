@@ -15,7 +15,7 @@ main benchmark workflow is now config-driven:
 Install the local package in your environment:
 
 ```bash
-pip install -e .
+pip install -e ".[eval,analysis]"
 ```
 
 Dry-run an evaluation command locally. This only validates config plumbing and

@@ -72,6 +72,14 @@ pip install --no-cache-dir -e "/work/courses/3dv/team43/benchmarking-vlms[eval,a
 The PyTorch wheel suffix must match the loaded CUDA module. For `cuda/13.0`,
 use the `cu130` PyTorch index URL.
 
+DeepSeek-VL2 needs `timm` for its vision tower. It is included in the
+`[eval]` extra. If your environment predates this change, update it with:
+
+```bash
+source /work/courses/3dv/team43/3dv-env-cu130/bin/activate
+pip install --no-cache-dir timm
+```
+
 ## Storage
 
 Use `space` on the cluster to inspect writable network filesystems. The default

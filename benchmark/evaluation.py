@@ -1164,8 +1164,15 @@ def main():
     print("="*50)
     print(f"{'Model':<35} | {'Accuracy':<10}")
     print("-"*50)
+    failed_models = []
     for model_id, (accuracy, _, _) in results.items():
         print(f"{model_id:<35} | {accuracy:>8.2f}%")
+        if len(dataset) > 0 and not results[model_id][2]:
+            failed_models.append(model_id)
+
+    if failed_models:
+        print("\nFailed model(s): " + ", ".join(failed_models), file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
