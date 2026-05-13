@@ -3,10 +3,21 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-from robo2vlm_curation import ALLOWED_LABELS, LABEL_TO_SUBCATEGORY_ORDER, infer_curation_subcategory
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = REPO_ROOT / "src"
+for import_path in (REPO_ROOT, SRC_DIR):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
+
+from vlm_bench.curation.taxonomy import (
+    ALLOWED_LABELS,
+    LABEL_TO_SUBCATEGORY_ORDER,
+    infer_curation_subcategory,
+)
 from scripts.recategorize_robo2vlm import count_jsonl_rows, summarize_results, utc_now_iso
 
 

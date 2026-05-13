@@ -1,0 +1,28 @@
+dataset:
+  name: keplerccc/Robo2VLM-1
+  split: test
+
+output:
+  dir: outputs/robo2vlm_spatial_affordance
+
+curator:
+  model: gpt-5-mini
+  prompt_version: spatial_affordance_v1
+  api_key_env: OPENAI_API_KEY
+  base_url: https://api.openai.com/v1
+  timeout_seconds: 90
+  max_retries: 4
+  retry_backoff_seconds: 2.0
+
+runtime:
+  streaming: true
+  resume: true
+  overwrite: false
+  batch_size: 25
+  start_index: 0
+  max_samples:
+  end_index:
+
+postprocess:
+  relabel_goal_state: true
+  subcategorize: true

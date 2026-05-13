@@ -1,5 +1,16 @@
 # VQA Dataset
 
+Most day-to-day workflows now go through the config-driven `vlm-bench` CLI.
+The scripts in this directory remain the implementation entrypoints for
+curation, post-processing, and visualization.
+
+Examples:
+
+```bash
+vlm-bench curate --config configs/curation/robo2vlm_spatial_affordance.yaml --dry-run
+vlm-bench analyze --config configs/analysis/robo2vlm_question_umap.yaml --dry-run
+```
+
 This dataset contains Visual Question Answering (VQA) examples collected from multimodal trajectories. The dataset includes questions, multiple-choice answers, and associated images. All images are stored directly in the dataset.
 
 ## Dataset Structure

@@ -16,10 +16,12 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+SRC_DIR = REPO_ROOT / "src"
+for import_path in (REPO_ROOT, SRC_DIR):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
 
-from robo2vlm_curation import ALLOWED_LABELS, infer_curation_subcategory
+from vlm_bench.curation.taxonomy import ALLOWED_LABELS, infer_curation_subcategory
 from scripts.robo2vlm_postprocess_helpers import (
     load_json,
     load_jsonl,

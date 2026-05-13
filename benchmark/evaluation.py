@@ -18,6 +18,13 @@ import concurrent.futures
 from typing import List, Dict, Tuple, Any
 from tqdm import tqdm
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(SCRIPT_DIR)
+SRC_DIR = os.path.join(REPO_ROOT, "src")
+for import_path in (REPO_ROOT, SRC_DIR):
+    if import_path not in sys.path:
+        sys.path.insert(0, import_path)
+
 # Import from vision_language.py and vision_language_multi_image.py
 from vision_language import model_example_map as single_image_models
 # from vision_language_multi_image import model_example_map as multi_image_models
@@ -90,13 +97,8 @@ from vllm import LLM, SamplingParams
 # Model-specific imports for handling images
 from transformers import AutoProcessor, AutoTokenizer, pipeline
 
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
-
-from robo2vlm_curation import load_subset_source_indices
+from vlm_bench.curation.taxonomy import load_subset_source_indices
+from vlm_bench.eval.prompts import PROMPT_MODE_CHOICES, apply_prompt_mode
 
 # Constants
 DEFAULT_MODELS = [ 
@@ -431,10 +433,21 @@ def apply_sanity_check_to_batch(
 
 class ModelEvaluator:
     """Evaluate VLM models on VQA tasks."""
-    def __init__(self, model_id: str, device="cuda", tensor_parallel_size=DEFAULT_TENSOR_PARALLEL_SIZE):
+    def __init__(
+        self,
+        model_id: str,
+        device="cuda",
+        tensor_parallel_size=DEFAULT_TENSOR_PARALLEL_SIZE,
+        prompt_mode="cot",
+        temperature=0.0,
+        max_tokens=10240,
+    ):
         self.model_id = model_id
         self.device = device
         self.model_type = self._get_model_key()
+        self.prompt_mode = prompt_mode
+        self.temperature = temperature
+        self.max_tokens = max_tokens
         
         print(f"Initializing model {model_id} of type {self.model_type} with tensor parallelism {tensor_parallel_size}...")
         
@@ -475,8 +488,8 @@ class ModelEvaluator:
         )
         
         self.sampling_params = SamplingParams(
-            temperature=0.0,
-            max_tokens=10240,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
     
     # def _get_model_key(self, model_id: str) -> str:
@@ -521,6 +534,8 @@ class ModelEvaluator:
             return "paligemma"      
         elif "phi-4" in model_id_lower:
             return "phi4_mm"
+        elif "deepseek-vl2" in model_id_lower or "deepseek_vl2" in model_id_lower:
+            return "deepseek_vl_v2"
         # # Map the model ID to the correct key in the model maps
         # if "llava-1.5" in model_id_lower:
         #     return "llava_1_5_7b"
@@ -555,15 +570,7 @@ class ModelEvaluator:
         """Get model request data from the appropriate loader."""
         modality = "image"  # We're working with images
         
-        # Prepend the instruction to each question
-        instructed_questions = [
-            f"Answer the following multiple choice question by selecting the letter (A, B, C, D, or E). Reason step by step about the answer, and show your work, for each step. Only after that, proceed to the final answer. Please answer the question and provide the correct option letter, e.g., A, B, C, D, E, at the end. {q}" 
-            for q in questions
-        ]
-        # instructed_questions = [
-        #     f"Answer the following multiple choice question by selecting the letter (A, B, C, D, or E). ONLY output the correct option letter, i.e., A, B, C, D, E. {q}" 
-        #     for q in questions
-        # ]
+        instructed_questions = apply_prompt_mode(questions, self.prompt_mode)
         try:
             return self.model_loader(instructed_questions, modality, self.model_id)
         except TypeError:
@@ -699,10 +706,16 @@ def save_model_results(
     image_mode="rgb",
     depth_model=None,
     depth_device=None,
+    prompt_mode="cot",
+    temperature=0.0,
+    max_tokens=10240,
+    output_dir=None,
+    run_name=None,
+    config_path=None,
 ):
     """Save results for a single model to a JSON file."""
     # Create results directory if it doesn't exist
-    results_dir = os.path.join(SCRIPT_DIR, "results")
+    results_dir = output_dir or os.path.join(SCRIPT_DIR, "results")
     os.makedirs(results_dir, exist_ok=True)
     
     # Create simplified results dictionary focused on accuracy
@@ -716,6 +729,11 @@ def save_model_results(
         "image_mode": image_mode,
         "depth_model": depth_model if image_mode == "rgb_depth" else None,
         "depth_device": depth_device if image_mode == "rgb_depth" else None,
+        "prompt_mode": prompt_mode,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "run_name": run_name,
+        "config_path": config_path,
         "accuracy": accuracy,
         "total_examples": len(results),
         "tag_accuracies": {
@@ -729,9 +747,10 @@ def save_model_results(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     sanity_suffix = f"_{sanity_check}" if sanity_check != "none" else ""
     image_mode_suffix = f"_{image_mode}" if image_mode != "rgb" else ""
+    run_prefix = f"{run_name}_" if run_name else ""
     filename = os.path.join(
         results_dir,
-        f"{model_id.split('/')[-1]}_{dataset.subset_name}"
+        f"{run_prefix}{model_id.split('/')[-1]}_{dataset.subset_name}_{prompt_mode}"
         f"{sanity_suffix}{image_mode_suffix}_{timestamp}.json",
     )
     
@@ -751,12 +770,21 @@ def evaluate_model(
     image_mode="rgb",
     depth_model=DEFAULT_DEPTH_MODEL,
     depth_device="cpu",
+    prompt_mode="cot",
+    temperature=0.0,
+    max_tokens=10240,
+    output_dir=None,
+    run_name=None,
+    config_path=None,
 ):
     """Evaluate a single model on the dataset."""
     try:
         evaluator = ModelEvaluator(
             model_id, 
-            tensor_parallel_size=tensor_parallel_size
+            tensor_parallel_size=tensor_parallel_size,
+            prompt_mode=prompt_mode,
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
         depth_augmenter = None
         if image_mode == "rgb_depth":
@@ -831,6 +859,8 @@ def evaluate_model(
         print(f"Correct Answers: {correct}/{total} ({accuracy:.2f}% accuracy)")
         print(f"Sanity Check: {sanity_check} (seed={sanity_seed})")
         print(f"Image Mode: {image_mode}")
+        print(f"Prompt Mode: {prompt_mode}")
+        print(f"Temperature: {temperature}")
         print(f"Average Response Time: {avg_response_time:.2f}s")
         
         # Print tag-based breakdown
@@ -860,6 +890,12 @@ def evaluate_model(
             image_mode=image_mode,
             depth_model=depth_model,
             depth_device=depth_device,
+            prompt_mode=prompt_mode,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            output_dir=output_dir,
+            run_name=run_name,
+            config_path=config_path,
         )
         
         return accuracy, tag_results, results
@@ -961,6 +997,30 @@ def parse_arguments():
         default=DEFAULT_MAX_BATCH_SIZE,
         help=f"Batch size for evaluation (default: {DEFAULT_MAX_BATCH_SIZE})"
     )
+
+    parser.add_argument(
+        "--prompt-mode",
+        dest="prompt_mode",
+        choices=PROMPT_MODE_CHOICES,
+        default="cot",
+        help="Prompting strategy for multiple-choice evaluation.",
+    )
+
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.0,
+        help="Sampling temperature passed to vLLM.",
+    )
+
+    parser.add_argument(
+        "--max_tokens",
+        "--max-tokens",
+        dest="max_tokens",
+        type=int,
+        default=10240,
+        help="Maximum number of generated tokens per answer.",
+    )
     
     parser.add_argument(
         "--tensor_parallel_size",
@@ -993,6 +1053,24 @@ def parse_arguments():
         default=0,
         help="Seed used for deterministic sanity-check setups such as shuffled images.",
     )
+
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Directory where result JSON files should be written.",
+    )
+
+    parser.add_argument(
+        "--run-name",
+        default=None,
+        help="Optional experiment/run name stored in results and used as filename prefix.",
+    )
+
+    parser.add_argument(
+        "--config-path",
+        default=None,
+        help="Optional path to the workflow config that launched this evaluation.",
+    )
     
     return parser.parse_args()
 
@@ -1024,8 +1102,13 @@ def main():
     print(f"Evaluating {len(args.models)} models on {args.dataset} ({args.split} split)")
     print(f"Subset: {subset_name}")
     print(f"Max samples: {args.max_samples}, Batch size: {args.batch_size}, Tensor parallel size: {args.tensor_parallel_size}")
+    print(f"Prompt mode: {args.prompt_mode}, Temperature: {args.temperature}, Max tokens: {args.max_tokens}")
     print(f"Sanity check: {args.sanity_check} (seed={args.sanity_seed})")
     print(f"Image mode: {args.image_mode}")
+    if args.run_name:
+        print(f"Run name: {args.run_name}")
+    if args.output_dir:
+        print(f"Output dir: {args.output_dir}")
     if args.image_mode == "rgb_depth":
         print(f"Depth model: {args.depth_model} on {args.depth_device}")
     print(f"Models: {', '.join(args.models)}")
@@ -1061,6 +1144,12 @@ def main():
                 image_mode=args.image_mode,
                 depth_model=args.depth_model,
                 depth_device=args.depth_device,
+                prompt_mode=args.prompt_mode,
+                temperature=args.temperature,
+                max_tokens=args.max_tokens,
+                output_dir=args.output_dir,
+                run_name=args.run_name,
+                config_path=args.config_path,
             )
             results[model_id] = model_results
             

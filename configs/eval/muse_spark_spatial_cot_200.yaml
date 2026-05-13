@@ -1,0 +1,36 @@
+# Muse Spark is currently a closed/private-preview API model, not a local vLLM
+# checkpoint. This config records the intended benchmark run and should be wired
+# to an API evaluator once Meta API access is available.
+run:
+  name: muse_spark_spatial_cot_200_t0
+  output_dir: runs/eval
+
+model:
+  id: meta-muse-spark
+  backend: meta_api_private_preview
+
+api:
+  base_url:
+  api_key_env: META_API_KEY
+
+data:
+  dataset: keplerccc/Robo2VLM-1
+  split: test
+  subset: spatial
+  curation_results: outputs/robo2vlm_spatial_affordance/curation_results.jsonl
+  max_samples: 200
+
+prompt:
+  mode: cot
+
+inference:
+  temperature: 0.0
+  max_tokens: 10240
+  batch_size: 1
+
+image:
+  mode: rgb
+
+sanity_check:
+  mode: none
+  seed: 11

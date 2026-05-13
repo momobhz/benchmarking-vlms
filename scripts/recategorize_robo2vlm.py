@@ -32,10 +32,12 @@ from urllib import request as urllib_request
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+SRC_DIR = REPO_ROOT / "src"
+for import_path in (REPO_ROOT, SRC_DIR):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
 
-from robo2vlm_curation import ALLOWED_LABELS, LABEL_TO_SUBCATEGORY_ORDER
+from vlm_bench.curation.taxonomy import ALLOWED_LABELS, LABEL_TO_SUBCATEGORY_ORDER
 
 
 DEFAULT_DATASET_NAME = "keplerccc/Robo2VLM-1"
