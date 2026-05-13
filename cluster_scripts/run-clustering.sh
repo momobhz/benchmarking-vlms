@@ -1,0 +1,309 @@
+#!/bin/bash
+
+# ETH student cluster submission script for the full Robo2VLM question
+# categorization + UMAP + interactive Plotly pipeline.
+#
+# Pipeline:
+# 1. Stream-curate the dataset with scripts/recategorize_robo2vlm.py
+# 2. Embed and cluster questions with scripts/visualize_robo2vlm_question_clusters.py
+# 3. Export an interactive Plotly HTML plot with scripts/plot_robo2vlm_question_clusters.py
+#
+# Submit with:
+#   sbatch run_robo2vlm_question_curation_umap_plotly.sh
+
+#SBATCH --job-name=robo2vlm-curate-umap-plotly
+#SBATCH --time=08:00:00
+#SBATCH --account=3dv
+#SBATCH --gpus=5060ti:1
+#SBATCH --output=/work/courses/3dv/team43/logs/%x-%j.out
+
+CUDA_MODULE="${CUDA_MODULE:-cuda/13.0}"
+. /etc/profile.d/modules.sh
+module add "$CUDA_MODULE"
+
+set -euo pipefail
+
+COURSE_TAG="${COURSE_TAG:-3dv}"
+ACCOUNT_TAG="${SLURM_JOB_ACCOUNT:-3dv}"
+TEAM_ROOT="${TEAM_ROOT:-/work/courses/${COURSE_TAG}/team43}"
+REPO_DIR="${REPO_DIR:-$TEAM_ROOT/benchmarking-vlms}"
+VENV_DIR="${VENV_DIR:-$TEAM_ROOT/3dv-env-cu130}"
+SCRATCH_BASE="${SCRATCH_BASE:-$TEAM_ROOT/robo2vlm_question_pipeline_cache}"
+
+CURATION_SCRIPT_PATH="${CURATION_SCRIPT_PATH:-$REPO_DIR/scripts/recategorize_robo2vlm.py}"
+UMAP_SCRIPT_PATH="${UMAP_SCRIPT_PATH:-$REPO_DIR/scripts/visualize_robo2vlm_question_clusters.py}"
+PLOTLY_SCRIPT_PATH="${PLOTLY_SCRIPT_PATH:-$REPO_DIR/scripts/plot_robo2vlm_question_clusters.py}"
+
+DATASET_NAME="${DATASET_NAME:-keplerccc/Robo2VLM-1}"
+DATASET_SPLIT="${DATASET_SPLIT:-test}"
+MAX_SAMPLES="${MAX_SAMPLES:-}"
+
+CURATION_OUTPUT_DIR="${CURATION_OUTPUT_DIR:-$TEAM_ROOT/outputs/robo2vlm_spatial_affordance}"
+CURATION_RESULTS_PATH="${CURATION_RESULTS_PATH:-$CURATION_OUTPUT_DIR/curation_results.jsonl}"
+CURATION_MODEL="${CURATION_MODEL:-gpt-4.1-mini}"
+PROMPT_VERSION="${PROMPT_VERSION:-spatial_affordance_v1}"
+API_KEY_ENV="${API_KEY_ENV:-OPENAI_API_KEY}"
+BASE_URL="${BASE_URL:-https://api.openai.com/v1}"
+CURATION_TIMEOUT_SECONDS="${CURATION_TIMEOUT_SECONDS:-90}"
+CURATION_MAX_RETRIES="${CURATION_MAX_RETRIES:-4}"
+CURATION_RETRY_BACKOFF_SECONDS="${CURATION_RETRY_BACKOFF_SECONDS:-2.0}"
+CURATION_BATCH_SIZE="${CURATION_BATCH_SIZE:-25}"
+CURATION_START_INDEX="${CURATION_START_INDEX:-0}"
+CURATION_END_INDEX="${CURATION_END_INDEX:-}"
+CURATION_RESUME="${CURATION_RESUME:-1}"
+CURATION_OVERWRITE="${CURATION_OVERWRITE:-1}"
+CURATION_STREAMING="${CURATION_STREAMING:-1}"
+
+UMAP_OUTPUT_DIR="${UMAP_OUTPUT_DIR:-$TEAM_ROOT/outputs/robo2vlm_umap}"
+EMBEDDING_MODEL="${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}"
+UMAP_BATCH_SIZE="${UMAP_BATCH_SIZE:-512}"
+DEVICE="${DEVICE:-cuda}"
+UMAP_STREAMING="${UMAP_STREAMING:-1}"
+PCA_COMPONENTS="${PCA_COMPONENTS:-50}"
+UMAP_NEIGHBORS="${UMAP_NEIGHBORS:-30}"
+UMAP_MIN_DIST="${UMAP_MIN_DIST:-0.05}"
+UMAP_METRIC="${UMAP_METRIC:-cosine}"
+RANDOM_STATE="${RANDOM_STATE:-42}"
+POINT_SIZE="${POINT_SIZE:-4.0}"
+POINT_ALPHA="${POINT_ALPHA:-0.35}"
+FIGURE_WIDTH="${FIGURE_WIDTH:-12}"
+FIGURE_HEIGHT="${FIGURE_HEIGHT:-9}"
+DPI="${DPI:-300}"
+SAVE_EMBEDDINGS="${SAVE_EMBEDDINGS:-0}"
+
+PLOT_TITLE="${PLOT_TITLE:-Robo2VLM Question Embeddings Projected with UMAP}"
+MARKER_SIZE="${MARKER_SIZE:-10.0}"
+MARKER_OPACITY="${MARKER_OPACITY:-0.5}"
+INCLUDE_PLOTLYJS="${INCLUDE_PLOTLYJS:-cdn}"
+PLOT_OUTPUT_HTML="${PLOT_OUTPUT_HTML:-}"
+
+sanitize_name() {
+  printf '%s' "$1" | tr -c '[:alnum:]_-' '_'
+}
+
+EMBEDDING_MODEL_TAG="$(sanitize_name "$EMBEDDING_MODEL")"
+UMAP_CSV_PATH="${UMAP_CSV_PATH:-$UMAP_OUTPUT_DIR/${DATASET_SPLIT}_${EMBEDDING_MODEL_TAG}_umap.csv}"
+if [ -z "$PLOT_OUTPUT_HTML" ]; then
+  PLOT_OUTPUT_HTML="${UMAP_CSV_PATH%.csv}_interactive.html"
+fi
+
+echo "Job ID: ${SLURM_JOB_ID:-none}"
+echo "Course tag: ${COURSE_TAG}"
+echo "Account: ${ACCOUNT_TAG}"
+echo "Team root: ${TEAM_ROOT}"
+echo "Repo: ${REPO_DIR}"
+echo "Venv: ${VENV_DIR}"
+echo "Scratch: ${SCRATCH_BASE}"
+echo "CUDA module: ${CUDA_MODULE}"
+echo "Dataset: ${DATASET_NAME} (${DATASET_SPLIT})"
+echo "Max samples: ${MAX_SAMPLES:-all}"
+echo "Curator script: ${CURATION_SCRIPT_PATH}"
+echo "Curator output dir: ${CURATION_OUTPUT_DIR}"
+echo "Curator results: ${CURATION_RESULTS_PATH}"
+echo "Curator model: ${CURATION_MODEL}"
+echo "Prompt version: ${PROMPT_VERSION}"
+echo "API key env: ${API_KEY_ENV}"
+echo "Base URL: ${BASE_URL}"
+echo "Curator batch size: ${CURATION_BATCH_SIZE}"
+echo "Curator resume: ${CURATION_RESUME}"
+echo "Curator overwrite: ${CURATION_OVERWRITE}"
+echo "Curator streaming: ${CURATION_STREAMING}"
+echo "UMAP script: ${UMAP_SCRIPT_PATH}"
+echo "UMAP output dir: ${UMAP_OUTPUT_DIR}"
+echo "Embedding model: ${EMBEDDING_MODEL}"
+echo "Embedding batch size: ${UMAP_BATCH_SIZE}"
+echo "Device: ${DEVICE}"
+echo "UMAP streaming: ${UMAP_STREAMING}"
+echo "PCA components: ${PCA_COMPONENTS}"
+echo "UMAP neighbors: ${UMAP_NEIGHBORS}"
+echo "UMAP min dist: ${UMAP_MIN_DIST}"
+echo "UMAP metric: ${UMAP_METRIC}"
+echo "Random state: ${RANDOM_STATE}"
+echo "Save embeddings: ${SAVE_EMBEDDINGS}"
+echo "Plotly script: ${PLOTLY_SCRIPT_PATH}"
+echo "UMAP CSV: ${UMAP_CSV_PATH}"
+echo "Plot HTML: ${PLOT_OUTPUT_HTML}"
+echo "Plot title: ${PLOT_TITLE}"
+echo "Marker size: ${MARKER_SIZE}"
+echo "Marker opacity: ${MARKER_OPACITY}"
+echo "Plotly JS mode: ${INCLUDE_PLOTLYJS}"
+
+mkdir -p "$SCRATCH_BASE"/{hf,transformers,datasets,tmp,matplotlib}
+mkdir -p "$CURATION_OUTPUT_DIR"
+mkdir -p "$UMAP_OUTPUT_DIR"
+
+export HF_HOME="$SCRATCH_BASE/hf"
+export TRANSFORMERS_CACHE="$SCRATCH_BASE/transformers"
+export HF_DATASETS_CACHE="$SCRATCH_BASE/datasets"
+export TMPDIR="$SCRATCH_BASE/tmp"
+export MPLCONFIGDIR="$SCRATCH_BASE/matplotlib"
+export TOKENIZERS_PARALLELISM=false
+export PYTHONUNBUFFERED=1
+export OPENAI_BASE_URL="$BASE_URL"
+
+if [ ! -d "$REPO_DIR" ]; then
+  echo "Repository directory does not exist: $REPO_DIR" >&2
+  exit 1
+fi
+
+if [ ! -f "$CURATION_SCRIPT_PATH" ]; then
+  echo "Curation script does not exist: $CURATION_SCRIPT_PATH" >&2
+  exit 1
+fi
+
+if [ ! -f "$UMAP_SCRIPT_PATH" ]; then
+  echo "UMAP script does not exist: $UMAP_SCRIPT_PATH" >&2
+  exit 1
+fi
+
+if [ ! -f "$PLOTLY_SCRIPT_PATH" ]; then
+  echo "Plotly script does not exist: $PLOTLY_SCRIPT_PATH" >&2
+  exit 1
+fi
+
+if [ ! -f "$VENV_DIR/bin/activate" ]; then
+  echo "Virtual environment not found: $VENV_DIR" >&2
+  echo "Create it before submitting, for example:" >&2
+  echo "  python3 -m venv $VENV_DIR" >&2
+  echo "  source $VENV_DIR/bin/activate" >&2
+  echo "  pip install --upgrade pip" >&2
+  echo "  pip install torch datasets sentence-transformers umap-learn matplotlib scikit-learn tqdm plotly" >&2
+  exit 1
+fi
+
+if [ -z "${!API_KEY_ENV:-}" ]; then
+  echo "Required API key environment variable is not set: $API_KEY_ENV" >&2
+  exit 1
+fi
+
+source "$VENV_DIR/bin/activate"
+
+cd "$REPO_DIR"
+
+echo "Starting Robo2VLM curation + UMAP + Plotly job..."
+module list
+nvidia-smi
+
+python3 - <<'PY'
+import os
+import torch
+
+print(f"PyTorch: {torch.__version__}")
+print(f"torch.version.cuda: {torch.version.cuda}")
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"GPU count visible to torch: {torch.cuda.device_count()}")
+print(f"OPENAI_BASE_URL: {os.environ.get('OPENAI_BASE_URL')}")
+PY
+
+CURATION_CMD=(
+  python3 "$CURATION_SCRIPT_PATH"
+  --dataset-name "$DATASET_NAME"
+  --split "$DATASET_SPLIT"
+  --output-dir "$CURATION_OUTPUT_DIR"
+  --model "$CURATION_MODEL"
+  --prompt-version "$PROMPT_VERSION"
+  --api-key-env "$API_KEY_ENV"
+  --base-url "$BASE_URL"
+  --timeout-seconds "$CURATION_TIMEOUT_SECONDS"
+  --max-retries "$CURATION_MAX_RETRIES"
+  --retry-backoff-seconds "$CURATION_RETRY_BACKOFF_SECONDS"
+  --batch-size "$CURATION_BATCH_SIZE"
+  --start-index "$CURATION_START_INDEX"
+)
+
+if [ -n "$MAX_SAMPLES" ]; then
+  CURATION_CMD+=(--max-samples "$MAX_SAMPLES")
+fi
+
+if [ -n "$CURATION_END_INDEX" ]; then
+  CURATION_CMD+=(--end-index "$CURATION_END_INDEX")
+fi
+
+if [ "$CURATION_RESUME" = "1" ]; then
+  CURATION_CMD+=(--resume)
+fi
+
+if [ "$CURATION_OVERWRITE" = "1" ]; then
+  CURATION_CMD+=(--overwrite)
+fi
+
+if [ "$CURATION_STREAMING" = "1" ]; then
+  :
+else
+  CURATION_CMD+=(--no-streaming)
+fi
+
+printf 'Running curation command:\n  %q' "${CURATION_CMD[@]}"
+printf '\n'
+
+"${CURATION_CMD[@]}"
+
+if [ ! -f "$CURATION_RESULTS_PATH" ]; then
+  echo "Expected curation results file was not created: $CURATION_RESULTS_PATH" >&2
+  exit 1
+fi
+
+UMAP_CMD=(
+  python3 "$UMAP_SCRIPT_PATH"
+  --dataset-name "$DATASET_NAME"
+  --split "$DATASET_SPLIT"
+  --curation-results "$CURATION_RESULTS_PATH"
+  --output-dir "$UMAP_OUTPUT_DIR"
+  --embedding-model "$EMBEDDING_MODEL"
+  --batch-size "$UMAP_BATCH_SIZE"
+  --device "$DEVICE"
+  --pca-components "$PCA_COMPONENTS"
+  --umap-neighbors "$UMAP_NEIGHBORS"
+  --umap-min-dist "$UMAP_MIN_DIST"
+  --umap-metric "$UMAP_METRIC"
+  --random-state "$RANDOM_STATE"
+  --point-size "$POINT_SIZE"
+  --point-alpha "$POINT_ALPHA"
+  --figure-width "$FIGURE_WIDTH"
+  --figure-height "$FIGURE_HEIGHT"
+  --dpi "$DPI"
+)
+
+if [ -n "$MAX_SAMPLES" ]; then
+  UMAP_CMD+=(--max-samples "$MAX_SAMPLES")
+fi
+
+if [ "$UMAP_STREAMING" = "1" ]; then
+  UMAP_CMD+=(--streaming)
+else
+  UMAP_CMD+=(--no-streaming)
+fi
+
+if [ "$SAVE_EMBEDDINGS" = "1" ]; then
+  UMAP_CMD+=(--save-embeddings)
+fi
+
+printf 'Running UMAP command:\n  %q' "${UMAP_CMD[@]}"
+printf '\n'
+
+"${UMAP_CMD[@]}"
+
+if [ ! -f "$UMAP_CSV_PATH" ]; then
+  echo "Expected UMAP CSV was not created: $UMAP_CSV_PATH" >&2
+  exit 1
+fi
+
+PLOTLY_CMD=(
+  python3 "$PLOTLY_SCRIPT_PATH"
+  --input-csv "$UMAP_CSV_PATH"
+  --output-html "$PLOT_OUTPUT_HTML"
+  --title "$PLOT_TITLE"
+  --marker-size "$MARKER_SIZE"
+  --marker-opacity "$MARKER_OPACITY"
+  --include-plotlyjs "$INCLUDE_PLOTLYJS"
+)
+
+printf 'Running Plotly command:\n  %q' "${PLOTLY_CMD[@]}"
+printf '\n'
+
+"${PLOTLY_CMD[@]}"
+
+echo "Finished."
+echo "Curation results: $CURATION_RESULTS_PATH"
+echo "UMAP outputs: $UMAP_OUTPUT_DIR"
+echo "Interactive plot: $PLOT_OUTPUT_HTML"

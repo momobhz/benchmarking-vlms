@@ -37,7 +37,7 @@ SUBCATEGORY_ORDER = [
 ]
 SUBCATEGORY_RULES = {
     SPATIAL_LABEL: {
-        DISTANCE_SUBCATEGORY: "which colored point",
+        DISTANCE_SUBCATEGORY: "point",
         DIRECTION_SUBCATEGORY: "which colored arrow",
     },
     AFFORDANCE_LABEL: {

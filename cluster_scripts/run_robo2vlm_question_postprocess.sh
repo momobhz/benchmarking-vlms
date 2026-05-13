@@ -13,7 +13,6 @@
 #SBATCH --job-name=robo2vlm-question-postprocess
 #SBATCH --time=00:20:00
 #SBATCH --account=3dv
-#SBATCH --cpus-per-task=1
 #SBATCH --output=/work/courses/3dv/team43/logs/%x-%j.out
 
 set -euo pipefail

@@ -475,7 +475,7 @@ class ModelEvaluator:
         )
         
         self.sampling_params = SamplingParams(
-            temperature=0.7,
+            temperature=0.0,
             max_tokens=10240,
         )
     
@@ -556,14 +556,14 @@ class ModelEvaluator:
         modality = "image"  # We're working with images
         
         # Prepend the instruction to each question
-        # instructed_questions = [
-        #     f"Answer the following multiple choice question by selecting the letter (A, B, C, D, or E). Reason step by step about the answer, and show your work, for each step. Only after that, proceed to the final answer. Please answer the question and provide the correct option letter, e.g., A, B, C, D, E, at the end. {q}" 
-        #     for q in questions
-        # ]
         instructed_questions = [
-            f"Answer the following multiple choice question by selecting the letter (A, B, C, D, or E). ONLY output the correct option letter, i.e., A, B, C, D, E. {q}" 
+            f"Answer the following multiple choice question by selecting the letter (A, B, C, D, or E). Reason step by step about the answer, and show your work, for each step. Only after that, proceed to the final answer. Please answer the question and provide the correct option letter, e.g., A, B, C, D, E, at the end. {q}" 
             for q in questions
         ]
+        # instructed_questions = [
+        #     f"Answer the following multiple choice question by selecting the letter (A, B, C, D, or E). ONLY output the correct option letter, i.e., A, B, C, D, E. {q}" 
+        #     for q in questions
+        # ]
         try:
             return self.model_loader(instructed_questions, modality, self.model_id)
         except TypeError:
