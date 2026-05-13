@@ -23,7 +23,8 @@ The Slurm entrypoints follow the cluster requirements:
 - `#SBATCH --account=3dv` selects the course/project tag.
 - `#SBATCH --time=...` sets the maximum runtime instead of relying on the 60 minute default.
 - `#SBATCH --gpus=5060ti:1` requests a specific 16 GB RTX 5060 Ti GPU.
-- `#SBATCH --cpus-per-task=1` keeps CPU usage to one core per job.
+- `#SBATCH --ntasks=1` keeps each submission to one Slurm task. The ETH student
+  cluster rejects `--cpus-per-task` together with the GPU request.
 - `. /etc/profile.d/modules.sh` is the first command after the `#SBATCH` block.
 - `module add cuda/13.0` activates the CUDA module used by the environment.
 - The cluster-provided `$TMPDIR` is preserved for local temporary files.

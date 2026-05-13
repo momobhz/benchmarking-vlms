@@ -7,7 +7,7 @@
 #SBATCH --time=10:00:00
 #SBATCH --account=3dv
 #SBATCH --gpus=5060ti:1
-#SBATCH --cpus-per-task=1
+#SBATCH --ntasks=1
 #SBATCH --output=/work/courses/3dv/team43/logs/midterm-runs/%x-%j.out
 
 . /etc/profile.d/modules.sh
