@@ -4,7 +4,7 @@ import pytest
 
 from vlm_bench.config import apply_overrides, load_config
 from vlm_bench.eval.prompts import apply_prompt_mode
-from vlm_bench.eval.runner import build_evaluation_command, resolve_run_output_dir
+from vlm_bench.eval.runner import build_evaluation_command, resolve_input_path, resolve_run_output_dir
 
 
 EVAL_MATRIX_200 = [
@@ -133,6 +133,20 @@ def test_resolve_run_output_dir_uses_run_name():
     assert resolve_run_output_dir(config, Path("/repo")) == (
         Path("/repo") / "runs" / "eval" / "qwen25_3b_spatial_cot_t0"
     )
+
+
+def test_resolve_input_path_prefers_existing_team_root_file(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    team_root = tmp_path / "team"
+    curation_path = team_root / "outputs" / "robo2vlm_spatial_affordance" / "curation_results.jsonl"
+    curation_path.parent.mkdir(parents=True)
+    curation_path.write_text("", encoding="utf-8")
+    monkeypatch.setenv("TEAM_ROOT", str(team_root))
+
+    assert resolve_input_path(
+        "outputs/robo2vlm_spatial_affordance/curation_results.jsonl",
+        repo_root,
+    ) == str(curation_path)
 
 
 def test_prompt_modes_are_distinct():

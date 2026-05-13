@@ -42,6 +42,15 @@ Important config fields:
 Results are written under `run.output_dir/run.name/results/`, with a resolved
 copy of the config at `run.output_dir/run.name/config.resolved.yaml`.
 
+On the ETH cluster, relative curation paths such as
+`outputs/robo2vlm_spatial_affordance/curation_results.jsonl` are resolved
+against both the repository root and `$TEAM_ROOT`. This supports both:
+
+```text
+/work/courses/3dv/team43/benchmarking-vlms/outputs/...
+/work/courses/3dv/team43/outputs/...
+```
+
 ## 200-Sample Evaluation Matrix
 
 The repository includes ready-to-submit configs for the requested Qwen2.5-VL and

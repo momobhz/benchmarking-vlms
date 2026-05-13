@@ -53,6 +53,34 @@ def resolve_run_output_dir(config: dict[str, Any], root: Path | None = None) -> 
     return output_root
 
 
+def resolve_input_path(value: Any, root: Path) -> str | None:
+    """Resolve input paths from configs against repo and cluster roots.
+
+    Evaluation configs are intentionally portable and use paths such as
+    ``outputs/...``. On the ETH cluster, historical curation outputs often live
+    one level above the repo under ``$TEAM_ROOT/outputs``. Prefer an existing
+    path when possible, otherwise return the repo-relative path for a clear
+    downstream error.
+    """
+    if value is None:
+        return None
+
+    path = Path(str(value))
+    if path.is_absolute():
+        return str(path)
+
+    candidates = [root / path]
+    team_root = os.environ.get("TEAM_ROOT")
+    if team_root:
+        candidates.append(Path(team_root) / path)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+
+    return str(candidates[-1] if team_root else candidates[0])
+
+
 def build_evaluation_command(config: dict[str, Any], root: Path | None = None) -> list[str]:
     validate_eval_config(config)
     root = root or repo_root()
@@ -67,7 +95,7 @@ def build_evaluation_command(config: dict[str, Any], root: Path | None = None) -
     append_flag(command, "--dataset", get_nested(config, "data.dataset"))
     append_flag(command, "--split", get_nested(config, "data.split"))
     append_flag(command, "--subset", get_nested(config, "data.subset"))
-    append_flag(command, "--curation-results", get_nested(config, "data.curation_results"))
+    append_flag(command, "--curation-results", resolve_input_path(get_nested(config, "data.curation_results"), root))
     append_flag(command, "--max_samples", get_nested(config, "data.max_samples"))
     append_flag(command, "--tensor_parallel_size", get_nested(config, "model.tensor_parallel_size"))
     append_flag(command, "--batch_size", get_nested(config, "inference.batch_size"))
