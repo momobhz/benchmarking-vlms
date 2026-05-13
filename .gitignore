@@ -5,3 +5,7 @@ benchmark/results/*
 runs/
 outputs/
 *.egg-info/
+.README.m.swp
+.README.md.swp
+.README.mz~.swp
+.robo2vlm_curation.py.swp
