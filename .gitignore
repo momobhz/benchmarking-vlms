@@ -2,7 +2,7 @@ __pycache__/
   *.pyc
 .venv/
 benchmark/results/*
-runs/
+#runs/
 outputs/
 *.egg-info/
 .README.m.swp
