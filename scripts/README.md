@@ -183,6 +183,26 @@ python3 scripts/run_image_understanding_sanity.py \
   --max-tokens 512
 ```
 
+Submit the same diagnostic on the ETH cluster:
+
+```bash
+sbatch slurm/image_understanding_sanity.sbatch \
+  runs/eval/qwen25_3b_spatial_cot_200_t0/results/qwen25_3b_spatial_cot_200_t0_Qwen2.5-VL-3B-Instruct_spatial_cot_20260513_170901.json \
+  Qwen/Qwen2.5-VL-3B-Instruct \
+  20
+```
+
+The sbatch script accepts the result JSON, model ID, and max example count as
+positional arguments. Extra arguments are forwarded to the Python script:
+
+```bash
+SAVE_PROBE_IMAGES=1 sbatch slurm/image_understanding_sanity.sbatch \
+  runs/eval/deepseek_vl2_tiny_spatial_cot_200_t0/results/deepseek_vl2_tiny_spatial_cot_200_t0_deepseek-vl2-tiny_spatial_cot_20260513_163446.json \
+  deepseek-ai/deepseek-vl2-tiny \
+  20 \
+  --probe overlay_describe
+```
+
 Outputs are written under `runs/diagnostics/image_understanding/<run-name>/`.
 The JSON includes the prompt, image control, expected behavior, raw model
 response, a coarse `heuristic_judgment` / `heuristic_pass` triage label, and

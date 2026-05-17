@@ -35,6 +35,20 @@ Typical evaluation:
 sbatch slurm/eval.sbatch configs/eval/qwen25_3b_spatial_cot.yaml
 ```
 
+Image-understanding sanity diagnostics for an existing result JSON:
+
+```bash
+sbatch slurm/image_understanding_sanity.sbatch \
+  runs/eval/qwen25_3b_spatial_cot_200_t0/results/qwen25_3b_spatial_cot_200_t0_Qwen2.5-VL-3B-Instruct_spatial_cot_20260513_170901.json \
+  Qwen/Qwen2.5-VL-3B-Instruct \
+  20
+```
+
+The diagnostic entrypoint uses the same cache and virtual environment
+conventions as the evaluation jobs. Set `SAVE_PROBE_IMAGES=1` to save the image
+payloads used for each probe, or pass extra script arguments after the max
+example count, for example `--probe overlay_describe`.
+
 Fine-tuning jobs use the same cluster conventions:
 
 ```bash
