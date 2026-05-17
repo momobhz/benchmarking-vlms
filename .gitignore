@@ -5,6 +5,7 @@ benchmark/results/*
 #runs/
 outputs/
 *.egg-info/
+local/
 .README.m.swp
 .README.md.swp
 .README.mz~.swp
