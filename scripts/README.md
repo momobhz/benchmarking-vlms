@@ -147,6 +147,50 @@ Notes:
 - Streaming mode is enabled by default to avoid materializing the full dataset locally.
 - Use `--no-streaming` only if you explicitly want the Hugging Face dataset cached on disk.
 
+## Image-Understanding Sanity Probes
+
+Use `scripts/run_image_understanding_sanity.py` to check whether a VLM can
+ground explanations in the actual image rather than merely rationalizing an
+answer. The script starts from an existing evaluation result JSON, reloads the
+referenced dataset images by `source_index`, and runs five raw-generation probes
+per selected example:
+
+- `explain_correct`: original image plus the known correct answer.
+- `explain_wrong`: original image plus a deliberately wrong proposed answer.
+- `explain_correct_blank`: blank image plus the original correct answer.
+- `explain_correct_shuffle`: shuffled image plus the original correct answer.
+- `overlay_describe`: low-level description of arrows, colored points, or
+  cross-view markers without answering the multiple-choice question.
+
+Example for a small Qwen spatial diagnostic:
+
+```bash
+python3 scripts/run_image_understanding_sanity.py \
+  --result-json runs/eval/qwen25_3b_spatial_cot_200_t0/results/qwen25_3b_spatial_cot_200_t0_Qwen2.5-VL-3B-Instruct_spatial_cot_20260513_170901.json \
+  --model Qwen/Qwen2.5-VL-3B-Instruct \
+  --max-examples 20 \
+  --max-tokens 512 \
+  --save-probe-images
+```
+
+Example for DeepSeek-VL2 tiny:
+
+```bash
+python3 scripts/run_image_understanding_sanity.py \
+  --result-json runs/eval/deepseek_vl2_tiny_spatial_cot_200_t0/results/deepseek_vl2_tiny_spatial_cot_200_t0_deepseek-vl2-tiny_spatial_cot_20260513_163446.json \
+  --model deepseek-ai/deepseek-vl2-tiny \
+  --max-examples 20 \
+  --max-tokens 512
+```
+
+Outputs are written under `runs/diagnostics/image_understanding/<run-name>/`.
+The JSON includes the prompt, image control, expected behavior, raw model
+response, a coarse `heuristic_judgment` / `heuristic_pass` triage label, and
+optional saved probe image path. The heuristic labels are only for quick
+filtering; manually review the raw responses before drawing conclusions.
+Increase `--max-examples` to `200` for the full spatial subset, or use repeated
+`--question-id` / `--source-index` arguments for targeted manual audits.
+
 ## Interactive Cluster Plot
 
 Use `scripts/plot_robo2vlm_question_clusters.py` to turn the generated `*_umap.csv`
