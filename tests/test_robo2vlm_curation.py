@@ -19,6 +19,7 @@ from vlm_bench.curation.taxonomy import (
     SPATIAL_LABEL,
     infer_curation_subcategory,
     label_for_source_index,
+    load_curation_metadata_by_source_index,
     load_label_by_source_index,
     load_subset_source_indices,
     load_subcategory_by_source_index,
@@ -136,6 +137,47 @@ def test_load_subcategory_by_source_index_and_prefixed_subsets(tmp_path):
     }
     assert load_subset_source_indices(path, "spatial_distance", split="test") == [1]
     assert load_subset_source_indices(path, "affordance_object_blockage", split="test") == [2]
+
+
+def test_load_curation_metadata_by_source_index_reads_labels_and_subcategories(tmp_path):
+    path = tmp_path / "curation_results.jsonl"
+    write_jsonl(
+        path,
+        [
+            {
+                "source_index": 4,
+                "source_split": "test",
+                "question": "Which colored arrow correctly shows the direction?",
+                "curation_label": SPATIAL_LABEL,
+                "curation_subcategory": DIRECTION_SUBCATEGORY,
+            },
+            {
+                "source_index": 5,
+                "source_split": "test",
+                "question": "Has the robot completed the task successfully?",
+                "curation_label": NEITHER_LABEL,
+                "curation_subcategory": None,
+            },
+            {
+                "source_index": 6,
+                "source_split": "train",
+                "question": "Is there any obstacle blocking the robot from reaching mug?",
+                "curation_label": AFFORDANCE_LABEL,
+                "curation_subcategory": OBJECT_BLOCKAGE_SUBCATEGORY,
+            },
+        ],
+    )
+
+    assert load_curation_metadata_by_source_index(path, split="test") == {
+        4: {
+            "curation_label": SPATIAL_LABEL,
+            "curation_subcategory": DIRECTION_SUBCATEGORY,
+        },
+        5: {
+            "curation_label": NEITHER_LABEL,
+            "curation_subcategory": None,
+        },
+    }
 
 
 def test_load_label_by_source_index_rejects_conflicting_duplicates(tmp_path):

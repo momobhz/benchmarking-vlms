@@ -221,6 +221,38 @@ def load_subcategory_by_source_index(
     return dict(sorted(subcategory_by_source_index.items()))
 
 
+def load_curation_metadata_by_source_index(
+    path: str | Path,
+    split: str | None = None,
+) -> dict[int, dict[str, str | None]]:
+    jsonl_path = Path(path)
+    metadata_by_source_index: dict[int, dict[str, str | None]] = {}
+    missing = object()
+
+    for line_number, record in _iter_curation_records(jsonl_path, split=split):
+        source_index = _coerce_source_index(
+            record.get("source_index"),
+            path=jsonl_path,
+            line_number=line_number,
+        )
+        label = extract_curation_label(record, path=jsonl_path, line_number=line_number)
+        subcategory = extract_curation_subcategory(record, path=jsonl_path, line_number=line_number)
+        metadata = {
+            "curation_label": label,
+            "curation_subcategory": subcategory,
+        }
+
+        previous = metadata_by_source_index.get(source_index, missing)
+        if previous is not missing and previous != metadata:
+            raise ValueError(
+                f"{jsonl_path}:{line_number} conflicts with existing curation metadata for "
+                f"source_index {source_index}: {previous!r} vs {metadata!r}"
+            )
+        metadata_by_source_index[source_index] = metadata
+
+    return dict(sorted(metadata_by_source_index.items()))
+
+
 def load_group_by_source_index(
     path: str | Path,
     split: str | None = None,

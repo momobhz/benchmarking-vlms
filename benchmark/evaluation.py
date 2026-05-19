@@ -97,7 +97,10 @@ from vllm import LLM, SamplingParams
 # Model-specific imports for handling images
 from transformers import AutoProcessor, AutoTokenizer, pipeline
 
-from vlm_bench.curation.taxonomy import load_subset_source_indices
+from vlm_bench.curation.taxonomy import (
+    load_curation_metadata_by_source_index,
+    load_subset_source_indices,
+)
 from vlm_bench.eval.prompts import PROMPT_MODE_CHOICES, apply_prompt_mode
 
 # Constants
@@ -145,11 +148,20 @@ def initialize_answer_extractor(tensor_parallel_size=1):
 
 class VQADataset(Dataset):
     """Load and prepare VQA dataset for evaluation."""
-    def __init__(self, dataset_name, split="test", max_samples=None, sample_indices=None, subset_name="full"):
+    def __init__(
+        self,
+        dataset_name,
+        split="test",
+        max_samples=None,
+        sample_indices=None,
+        subset_name="full",
+        curation_metadata_by_source_index=None,
+    ):
         self.dataset_name = dataset_name
         self.split = split
         self.subset_name = subset_name
         self.sample_indices = sample_indices
+        self.curation_metadata_by_source_index = curation_metadata_by_source_index or {}
 
         if sample_indices is not None:
             requested_indices = list(sample_indices)
@@ -209,13 +221,20 @@ class VQADataset(Dataset):
             item = self.dataset[self.indices[idx]]
             source_index = self.indices[idx]
 
+        curation_metadata = self.curation_metadata_by_source_index.get(source_index, {})
+        curation_label = curation_metadata.get("curation_label")
+        curation_subcategory = curation_metadata.get("curation_subcategory")
+        tag = curation_subcategory or curation_label or item.get("tag") or "unknown"
+
         return {
             "id": item["id"],
             "question": item["question"],
             "choices": item["choices"],
             "correct_answer": item["correct_answer"],
             "image": item["image"],
-            "tag": item.get("tag", "unknown"),
+            "tag": tag,
+            "curation_label": curation_label,
+            "curation_subcategory": curation_subcategory,
             "source_index": source_index,
         }
 
@@ -664,6 +683,8 @@ class ModelEvaluator:
                 "predicted_letter": letter_answers[i],
                 "correct": letter_answers[i] == expected_letter if letter_answers[i] else False,
                 "tag": batch_data[i].get("tag", "unknown"),
+                "curation_label": batch_data[i].get("curation_label"),
+                "curation_subcategory": batch_data[i].get("curation_subcategory"),
                 "source_index": batch_data[i].get("source_index"),
                 "image_source_index": batch_data[i].get("image_source_index"),
                 "sanity_check": batch_data[i].get("sanity_check", "none"),
@@ -1090,6 +1111,16 @@ def load_subset_indices(args):
     print(f"Loaded {len(indices)} {args.subset} indices from {args.curation_results}")
     return indices, args.subset
 
+
+def load_curation_metadata(args):
+    if not args.curation_results:
+        return None
+
+    metadata = load_curation_metadata_by_source_index(args.curation_results, split=args.split)
+    print(f"Loaded curation metadata for {len(metadata)} source indices from {args.curation_results}")
+    return metadata
+
+
 def main():
     """Main entry point."""
     args = parse_arguments()
@@ -1098,6 +1129,7 @@ def main():
     # wait_for_gpu_availability()
     
     subset_indices, subset_name = load_subset_indices(args)
+    curation_metadata = load_curation_metadata(args)
 
     print(f"Evaluating {len(args.models)} models on {args.dataset} ({args.split} split)")
     print(f"Subset: {subset_name}")
@@ -1120,6 +1152,7 @@ def main():
         max_samples=args.max_samples,
         sample_indices=subset_indices,
         subset_name=subset_name,
+        curation_metadata_by_source_index=curation_metadata,
     )
     print(f"Loaded {len(dataset)} examples for evaluation")
     
