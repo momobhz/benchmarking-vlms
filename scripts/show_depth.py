@@ -54,6 +54,9 @@ def _show_pair(
     no_gui: bool,
 ) -> None:
     if save_path:
+        save_dir = os.path.dirname(save_path)
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
         _make_side_by_side(original, depth_vis).save(save_path)
 
     if no_gui:
@@ -168,4 +171,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

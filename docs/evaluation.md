@@ -42,6 +42,9 @@ Important config fields:
 Results are written under `run.output_dir/run.name/results/`, with a resolved
 copy of the config at `run.output_dir/run.name/config.resolved.yaml`.
 
+For the current curated 200-sample results and image-understanding sanity-check
+analysis, see [Evaluation Results And Sanity Checks](evaluation-results-and-sanity.md).
+
 On the ETH cluster, relative curation paths such as
 `outputs/robo2vlm_spatial_affordance/curation_results.jsonl` are resolved
 against both the repository root and `$TEAM_ROOT`. This supports both:
