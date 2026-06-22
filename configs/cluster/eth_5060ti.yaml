@@ -1,0 +1,13 @@
+cluster:
+  account: 3dv
+  gpu: 5060ti:1
+  time: "10:00:00"
+  cuda_module: cuda/13.0
+
+paths:
+  course_tag: 3dv
+  team_root: /work/courses/3dv/team43
+  repo_dir: /work/courses/3dv/team43/benchmarking-vlms
+  venv_dir: /work/courses/3dv/team43/3dv-env-cu130
+  scratch_base: /work/courses/3dv/team43/vlm_bench_cache
+  log_dir: /work/courses/3dv/team43/logs

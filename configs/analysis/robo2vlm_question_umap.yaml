@@ -1,0 +1,38 @@
+dataset:
+  name: keplerccc/Robo2VLM-1
+  split: test
+  streaming: true
+  max_samples:
+
+curation:
+  results: outputs/robo2vlm_spatial_affordance/curation_results.jsonl
+
+output:
+  dir: outputs/robo2vlm_umap
+
+embedding:
+  model: sentence-transformers/all-MiniLM-L6-v2
+  batch_size: 512
+  device: cuda
+  save_embeddings: false
+
+umap:
+  pca_components: 50
+  neighbors: 30
+  min_dist: 0.05
+  metric: cosine
+  random_state: 42
+
+plot:
+  interactive: true
+  input_csv: outputs/robo2vlm_umap/test_sentence-transformers_all-MiniLM-L6-v2_umap.csv
+  output_html: outputs/robo2vlm_umap/test_sentence-transformers_all-MiniLM-L6-v2_umap_interactive.html
+  title: Robo2VLM Question Embeddings Projected with UMAP
+  point_size: 4.0
+  point_alpha: 0.35
+  figure_width: 12
+  figure_height: 9
+  dpi: 300
+  marker_size: 10.0
+  marker_opacity: 0.5
+  include_plotlyjs: cdn
