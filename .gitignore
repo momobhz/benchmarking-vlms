@@ -1,12 +1,21 @@
+# Python
 __pycache__/
-  *.pyc
-.venv/
-benchmark/results/*
-#runs/
-outputs/
+*.py[cod]
 *.egg-info/
+.pytest_cache/
+.venv/
+
+# Local operating-system and editor files
+.DS_Store
+*.swp
+*~
+
+# Local environments, scratch files, and generated build artifacts
 local/
-.README.m.swp
-.README.md.swp
-.README.mz~.swp
-.robo2vlm_curation.py.swp
+outputs/
+demo/remotion-eval-flow/node_modules/
+demo/remotion-eval-flow/out/
+
+# Legacy evaluator outputs are generated locally; curated submission artifacts
+# are tracked under runs/ and output/pdf/.
+benchmark/results/*

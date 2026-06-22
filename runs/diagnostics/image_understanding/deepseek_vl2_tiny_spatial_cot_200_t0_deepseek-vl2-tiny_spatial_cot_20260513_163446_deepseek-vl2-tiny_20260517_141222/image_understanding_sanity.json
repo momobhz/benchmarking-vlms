@@ -2,7 +2,7 @@
   "model": "deepseek-ai/deepseek-vl2-tiny",
   "dataset": "keplerccc/Robo2VLM-1",
   "split": "test",
-  "source_result_json": "/work/courses/3dv/team43/benchmarking-vlms/runs/eval/deepseek_vl2_tiny_spatial_cot_200_t0/results/deepseek_vl2_tiny_spatial_cot_200_t0_deepseek-vl2-tiny_spatial_cot_20260513_163446.json",
+  "source_result_json": "runs/eval/deepseek_vl2_tiny_spatial_cot_200_t0/results/deepseek_vl2_tiny_spatial_cot_200_t0_deepseek-vl2-tiny_spatial_cot_20260513_163446.json",
   "selected_examples": 20,
   "total_probes": 100,
   "probes": [

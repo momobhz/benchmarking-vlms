@@ -18,7 +18,8 @@ from matplotlib.patches import FancyBboxPatch
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CURATION_DIR = Path("/Users/momo/Uni/MSc/3DV/robo2vlm_spatial_affordance")
+DEFAULT_CURATION_DIR = ROOT / "outputs" / "robo2vlm_spatial_affordance"
+CURATION_DIR = Path(os.environ.get("CURATION_DIR", DEFAULT_CURATION_DIR)).expanduser()
 SUMMARY_PATH = CURATION_DIR / "summary.json"
 CURATION_PATH = CURATION_DIR / "curation_results.jsonl"
 

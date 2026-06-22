@@ -1,56 +1,87 @@
-# Benchmarking VLMs on Spatial and Affordance Understanding
+# Benchmarking VLMs for Robotic Spatial and Affordance Understanding
 
-This repository evaluates vision-language models on Robo2VLM-style robotics VQA
-questions, with emphasis on spatial reasoning and affordance understanding.
+This repository contains a university research project evaluating
+vision-language models on Robo2VLM-1 robotics VQA questions. The project focuses
+on two capabilities that matter for manipulation tasks:
 
-The original Robo2VLM generation and fine-tuning code is still present, but the
-main benchmark workflow is now config-driven:
+- Spatial reasoning over camera views, depth, and directional overlays.
+- Affordance understanding, especially object blockage and grasp stability.
 
-1. Curate or post-process question labels.
-2. Evaluate a VLM on a curated subset.
-3. Analyze question clusters and result outputs.
+The maintained workflow is config-driven:
+
+1. Curate Robo2VLM questions into spatial, affordance, and excluded subsets.
+2. Evaluate VLM checkpoints on fixed subsets with zero-shot and CoT prompts.
+3. Analyze accuracy, subcategory behavior, and visual-grounding sanity checks.
+
+Legacy Robo2VLM generation and fine-tuning code is retained for provenance, but
+the benchmark entry points live under `src/vlm_bench`, `configs`, `scripts`,
+and `slurm`.
 
 ## Quick Start
 
-Install the local package in your environment:
+Install the local package:
 
 ```bash
-pip install -e ".[eval,analysis]"
+pip install -e ".[eval,analysis,test]"
 ```
 
-Dry-run an evaluation command locally. This only validates config plumbing and
-prints the command; it does not load vLLM or run inference.
+Dry-run an evaluation locally. This validates the config and command plumbing
+without loading vLLM or running inference.
 
 ```bash
-vlm-bench eval --config configs/eval/qwen25_3b_spatial_cot.yaml --dry-run
+vlm-bench eval --config configs/eval/qwen25_3b_spatial_cot_200.yaml --dry-run
 ```
 
 Submit the same evaluation to the cluster:
 
 ```bash
-sbatch slurm/eval.sbatch configs/eval/qwen25_3b_spatial_cot.yaml
+sbatch slurm/eval.sbatch configs/eval/qwen25_3b_spatial_cot_200.yaml
 ```
 
 Override experiment parameters without editing the config:
 
 ```bash
 vlm-bench eval \
-  --config configs/eval/qwen25_3b_spatial_cot.yaml \
+  --config configs/eval/qwen25_3b_spatial_cot_200.yaml \
   --set data.max_samples=20 \
   --set prompt.mode=zero_shot \
   --set inference.temperature=0.2 \
   --dry-run
 ```
 
-## Main Evaluation Knobs
+Run the test suite:
+
+```bash
+pytest
+```
+
+## Repository Structure
+
+```text
+configs/          Experiment, curation, analysis, and cluster defaults
+src/vlm_bench/    Config loader, CLI, prompt templates, taxonomy, workflow runners
+benchmark/        Adapted legacy Robo2VLM/vLLM evaluator
+scripts/          Dataset curation, post-processing, and visualization utilities
+slurm/            ETH cluster entry points
+cluster_scripts/  Compatibility wrappers around the maintained Slurm workflow
+generation/       Original Robo2VLM data-generation code
+finetune/         Original fine-tuning code and notes
+docs/             Focused workflow and result documentation
+runs/             Tracked evaluation and diagnostic result artifacts
+output/pdf/       Tracked figures and inserts used in the report/poster
+poster/           Poster source and final PDF
+tests/            Smoke and unit tests
+```
+
+## Evaluation Configs
 
 Use `configs/eval/*.yaml` to control:
 
-- `model.id`: VLM checkpoint to evaluate.
+- `model.id`: Hugging Face checkpoint.
 - `data.subset`: `full`, `spatial`, `affordance`, `neither`, or a supported subcategory.
-- `data.max_samples`: sample count for the run.
+- `data.max_samples`: sample count for capped runs.
 - `prompt.mode`: `cot` or `zero_shot`.
-- `inference.temperature`: model sampling temperature.
+- `inference.temperature`: sampling temperature.
 - `image.mode`: `rgb` or `rgb_depth`.
 
 Results are written to:
@@ -61,28 +92,13 @@ runs/eval/<run.name>/
   results/*.json
 ```
 
-## Repository Structure
-
-```text
-configs/          Experiment, curation, analysis, and cluster defaults
-src/vlm_bench/    Config loader, CLI, prompt templates, taxonomy, workflow runners
-benchmark/        Legacy vLLM evaluator backend
-scripts/          Data curation, post-processing, visualization scripts
-slurm/            Generic cluster entrypoints
-cluster_scripts/  Compatibility wrappers for older submission commands
-generation/       Original Robo2VLM data-generation code
-finetune/         Original fine-tuning code
-docs/             Workflow documentation
-tests/            Smoke and unit tests
-```
-
 ## Workflows
 
 Evaluation:
 
 ```bash
-vlm-bench eval --config configs/eval/qwen25_3b_spatial_cot.yaml --dry-run
-sbatch slurm/eval.sbatch configs/eval/qwen25_3b_spatial_cot.yaml
+vlm-bench eval --config configs/eval/qwen25_3b_spatial_cot_200.yaml --dry-run
+sbatch slurm/eval.sbatch configs/eval/qwen25_3b_spatial_cot_200.yaml
 ```
 
 The ready-to-run 200-sample Qwen2.5-VL and DeepSeek-VL2 matrix lives in
@@ -108,35 +124,46 @@ Fine-tuning:
 sbatch slurm/finetune.sbatch
 ```
 
-See:
+Primary documentation:
 
 - [docs/evaluation.md](docs/evaluation.md)
+- [docs/evaluation-results-and-sanity.md](docs/evaluation-results-and-sanity.md)
 - [docs/curation.md](docs/curation.md)
 - [docs/cluster.md](docs/cluster.md)
 - [docs/benchmark-patches.md](docs/benchmark-patches.md)
 
-## ETH Cluster Notes
+## Results and Artifacts
+
+The tracked result artifacts are intentionally small enough for repository
+submission:
+
+- `runs/eval/*/results/*.json`: 200-example evaluation outputs.
+- `runs/diagnostics/image_understanding/*/image_understanding_sanity.json`:
+  image-understanding sanity probes.
+- `output/pdf/`: generated figures used by the report and poster.
+- `poster/final.pdf`: final A1 project poster.
+
+Large reproducible caches, model weights, virtual environments, and local build
+outputs are ignored.
+
+## Cluster Notes
 
 The evaluator in `benchmark/` uses vLLM and should be run on a compatible GPU
-node. The Slurm scripts default to the ETH 3DV student cluster paths and cache
-locations, but all important paths can be overridden with environment variables.
-The scripts follow the student cluster guidance: they set `--account`, `--time`,
-request `--gpus=5060ti:1` and `--ntasks=1`, load
-`/etc/profile.d/modules.sh` immediately after the `#SBATCH` block, activate
-`cuda/13.0`, and keep the cluster-provided `$TMPDIR` for local temporary files.
+node. The Slurm scripts default to ETH 3DV student cluster paths and cache
+locations, but all important paths can be overridden with environment variables:
 
 ```bash
 TEAM_ROOT=/work/courses/3dv/team43 \
 VENV_DIR=/work/courses/3dv/team43/3dv-env-cu130 \
 SCRATCH_BASE=/work/courses/3dv/team43/vlm_bench_cache \
-sbatch slurm/eval.sbatch configs/eval/qwen25_3b_spatial_cot.yaml
+sbatch slurm/eval.sbatch configs/eval/qwen25_3b_spatial_cot_200.yaml
 ```
 
 Authenticate with Hugging Face on the login node using the same `HF_HOME` that
 the job will use. Batch jobs should not call `hf auth login`.
 
-See [docs/cluster.md](docs/cluster.md) for the setup command, CUDA/PyTorch
-matching notes, storage guidance, and links to the ETH cluster documentation.
+See [docs/cluster.md](docs/cluster.md) for setup commands, CUDA/PyTorch matching
+notes, storage guidance, and ETH cluster documentation links.
 
 ## Citation
 

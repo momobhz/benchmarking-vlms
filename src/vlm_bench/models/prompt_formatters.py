@@ -1,1 +1,1 @@
-"""Compatibility placeholder for model-specific prompt formatters."""
+"""Compatibility module for model-specific prompt formatters."""
