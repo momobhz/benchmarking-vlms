@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A1 Poster - Benchmarking VLMs Evaluation Results</title>
+  <style>
+    @page {
+      size: A1 portrait;
+      margin: 0;
+    }
+
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --subtle: #64748b;
+      --line: #cbd5e1;
+      --panel: #ffffff;
+      --paper: #f7f9fc;
+      --teal: #0f766e;
+      --teal-2: #14b8a6;
+      --blue: #2563eb;
+      --orange: #f97316;
+      --purple: #7c3aed;
+      --pink: #db2777;
+      --amber: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #dbe3ee;
+      color: var(--ink);
+      font-family: Inter, Arial, Helvetica, sans-serif;
+    }
+
+    .page {
+      width: 594mm;
+      height: 841mm;
+      margin: 0 auto;
+      padding: 16mm;
+      background: var(--paper);
+      overflow: hidden;
+    }
+
+    .header {
+      height: 83mm;
+      display: grid;
+      grid-template-columns: 1fr 64mm;
+      column-gap: 8mm;
+      background: #fff;
+      border: 0.7mm solid var(--line);
+      border-top: 2.4mm solid var(--teal);
+      border-radius: 4mm;
+      padding: 8mm;
+    }
+
+    h1 {
+      margin: 0 0 3mm;
+      font-size: 16.5mm;
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      font-size: 6.1mm;
+      line-height: 1.22;
+      color: #334155;
+      font-weight: 650;
+      max-width: 420mm;
+    }
+
+    .authors {
+      margin-top: 3mm;
+      font-size: 4.7mm;
+      color: var(--muted);
+    }
+
+    .takeaway {
+      margin-top: 5mm;
+      padding: 3.6mm 4.2mm;
+      border-radius: 3mm;
+      background: #ecfdf5;
+      border: 0.45mm solid #99f6e4;
+      color: #115e59;
+      font-size: 4.9mm;
+      line-height: 1.18;
+      font-weight: 750;
+    }
+
+    .qr-box {
+      height: 45mm;
+      border: 0.65mm dashed #94a3b8;
+      border-radius: 3mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #64748b;
+      font-size: 5mm;
+      font-weight: 750;
+      background: #f8fafc;
+    }
+
+    .header-note {
+      margin-top: 4mm;
+      color: #334155;
+      font-size: 4.15mm;
+      line-height: 1.18;
+    }
+
+    .poster-grid {
+      margin-top: 6mm;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 158mm 196mm 166mm 130mm 22mm;
+      gap: 6mm;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 0.55mm solid #d7dce5;
+      border-radius: 4mm;
+      overflow: hidden;
+      position: relative;
+      padding: 10mm 8mm 8mm;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3mm;
+      background: var(--accent, var(--teal));
+    }
+
+    .span-2 {
+      grid-column: 1 / -1;
+    }
+
+    .panel-heading {
+      display: flex;
+      align-items: center;
+      gap: 4mm;
+      margin-bottom: 5mm;
+    }
+
+    .num {
+      width: 12mm;
+      height: 12mm;
+      border-radius: 50%;
+      background: var(--accent, var(--teal));
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 850;
+      font-size: 6.2mm;
+      flex: 0 0 auto;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 8.5mm;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      font-size: 4.3mm;
+      line-height: 1.24;
+      color: #334155;
+    }
+
+    .small {
+      font-size: 3.75mm;
+      line-height: 1.22;
+      color: var(--subtle);
+    }
+
+    .image {
+      width: 100%;
+      display: block;
+      object-fit: contain;
+      border-radius: 2.6mm;
+      border: 0.45mm solid var(--line);
+      background: #f8fafc;
+    }
+
+    .image.cover {
+      object-fit: cover;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5mm;
+      align-items: start;
+    }
+
+    .tag-row {
+      display: flex;
+      gap: 2.2mm;
+      flex-wrap: wrap;
+      margin-top: 4mm;
+    }
+
+    .tag {
+      padding: 1.6mm 3mm;
+      border-radius: 20mm;
+      background: #e0f2fe;
+      color: #075985;
+      font-size: 3.7mm;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .tag.teal {
+      background: #ccfbf1;
+      color: #115e59;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3mm;
+      margin-top: 5mm;
+    }
+
+    .metric {
+      border: 0.45mm solid #d7dce5;
+      border-left: 1.8mm solid var(--accent, var(--teal));
+      border-radius: 3mm;
+      padding: 3mm 3.4mm;
+      background: #fff;
+      min-height: 28mm;
+    }
+
+    .metric-value {
+      display: block;
+      font-size: 9.2mm;
+      line-height: 1;
+      font-weight: 850;
+    }
+
+    .metric-label {
+      display: block;
+      margin-top: 1.5mm;
+      color: #334155;
+      font-size: 3.7mm;
+      line-height: 1.14;
+      font-weight: 700;
+    }
+
+    .metric-sub {
+      display: block;
+      margin-top: 1.1mm;
+      color: var(--subtle);
+      font-size: 3.35mm;
+      line-height: 1.12;
+    }
+
+    .headline-chart {
+      height: 80mm;
+      margin-top: 7mm;
+      padding-left: 14mm;
+      border-bottom: 0.5mm solid #94a3b8;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4mm;
+      align-items: end;
+      position: relative;
+    }
+
+    .headline-chart::before {
+      content: "20% 5-way chance";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 20%;
+      border-top: 0.65mm solid var(--amber);
+      color: #b45309;
+      font-size: 3.2mm;
+      font-weight: 800;
+      text-align: right;
+      padding-right: 2mm;
+      transform: translateY(-1.5mm);
+    }
+
+    .bar-group {
+      height: 100%;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      text-align: center;
+      color: #334155;
+      font-size: 3.4mm;
+      line-height: 1.08;
+      font-weight: 750;
+    }
+
+    .bars {
+      display: flex;
+      gap: 2mm;
+      align-items: end;
+      justify-content: center;
+      height: 68mm;
+    }
+
+    .bar {
+      width: 10mm;
+      border-radius: 1.8mm 1.8mm 0 0;
+      position: relative;
+      color: #0f172a;
+      font-size: 2.9mm;
+      font-weight: 800;
+    }
+
+    .bar span {
+      position: absolute;
+      top: -5mm;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    .legend {
+      display: flex;
+      gap: 6mm;
+      align-items: center;
+      margin-top: 3mm;
+      color: #334155;
+      font-size: 3.7mm;
+      font-weight: 750;
+    }
+
+    .swatch {
+      display: inline-block;
+      width: 6mm;
+      height: 4mm;
+      border-radius: 1mm;
+      margin-right: 1.5mm;
+      vertical-align: middle;
+    }
+
+    .sample-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      grid-template-rows: repeat(3, 1fr);
+      gap: 5mm;
+      margin-top: 5mm;
+    }
+
+    .sample-card {
+      border: 0.45mm solid var(--line);
+      border-radius: 3mm;
+      padding: 3mm;
+      background: #fff;
+      min-height: 0;
+    }
+
+    .sample-card.large {
+      grid-row: span 3;
+    }
+
+    .sample-card img {
+      height: 31mm;
+    }
+
+    .sample-card.large img {
+      height: 120mm;
+    }
+
+    .sample-title {
+      margin-top: 2mm;
+      font-size: 3.35mm;
+      line-height: 1.16;
+      color: #334155;
+      font-weight: 750;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 3mm;
+      margin-top: 6mm;
+    }
+
+    .result-row {
+      display: grid;
+      grid-template-columns: 38mm 1fr 18mm;
+      gap: 3mm;
+      align-items: center;
+      font-size: 3.65mm;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .track {
+      height: 6mm;
+      background: #e2e8f0;
+      border-radius: 10mm;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      width: var(--w);
+      background: var(--c);
+      border-radius: 10mm;
+    }
+
+    .note-box {
+      margin-top: 6mm;
+      padding: 4mm;
+      border-radius: 3mm;
+      border: 0.45mm solid var(--line);
+      background: #f8fafc;
+      font-size: 4mm;
+      line-height: 1.22;
+      color: #334155;
+      font-weight: 650;
+    }
+
+    .sanity-grid {
+      margin-top: 6mm;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 3mm;
+    }
+
+    .probe {
+      border: 0.45mm solid var(--line);
+      border-radius: 3mm;
+      padding: 3mm;
+      background: #fff;
+    }
+
+    .probe-title {
+      min-height: 15mm;
+      font-size: 3.5mm;
+      line-height: 1.08;
+      font-weight: 800;
+      color: #334155;
+    }
+
+    .probe-row {
+      margin-top: 2mm;
+      font-size: 3.2mm;
+      color: #334155;
+      font-weight: 750;
+    }
+
+    .probe-track {
+      margin-top: 1mm;
+      height: 4.2mm;
+      background: #e2e8f0;
+      border-radius: 9mm;
+      overflow: hidden;
+    }
+
+    .probe-fill {
+      height: 100%;
+      width: var(--w);
+      background: var(--c);
+    }
+
+    .bullets {
+      margin: 5mm 0 0;
+      padding-left: 5mm;
+      color: #334155;
+      font-size: 4.2mm;
+      line-height: 1.27;
+      font-weight: 650;
+    }
+
+    .bullets li {
+      margin: 1.4mm 0;
+    }
+
+    .discussion-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 5mm;
+      margin-top: 5mm;
+    }
+
+    .discussion-grid p {
+      font-size: 3.95mm;
+      line-height: 1.2;
+    }
+
+    .discussion-grid .bullets {
+      margin-top: 3.2mm;
+      font-size: 3.55mm;
+      line-height: 1.18;
+    }
+
+    .callout {
+      padding: 4mm;
+      border-radius: 3mm;
+      border: 0.45mm solid #fbcfe8;
+      background: #fdf2f8;
+      color: #9d174d;
+      font-size: 3.35mm;
+      line-height: 1.18;
+      font-weight: 700;
+    }
+
+    .footer {
+      grid-column: 1 / -1;
+      align-self: stretch;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2mm;
+      color: var(--muted);
+      font-size: 3.8mm;
+      border-top: 0.45mm solid var(--line);
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .page {
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <section>
+        <h1>Benchmarking VLMs for Robotic Spatial and Affordance Understanding</h1>
+        <div class="subtitle">Robo2VLM-1 curated evaluation: 2 models x 2 subsets x 2 prompt modes, 200 examples per run.</div>
+        <div class="authors">Momo Behanzin | ETH Zurich 3DV | github.com/momobhz/benchmarking-vlms</div>
+        <div class="takeaway">Key takeaway: spatial reasoning remains near 5-way chance, while affordance accuracy is driven mainly by object-blockage questions; CoT is an ablation, not a guaranteed improvement.</div>
+      </section>
+      <aside>
+        <div class="qr-box">Project QR<br>placeholder</div>
+        <div class="header-note">Artifacts: <strong>runs/eval/*/results/*.json</strong> and image-understanding sanity outputs. Dataset: <strong>keplerccc/Robo2VLM-1</strong>, test split, RGB, temperature 0.0.</div>
+      </aside>
+    </header>
+
+    <section class="poster-grid">
+      <article class="panel" style="--accent: var(--teal)">
+        <div class="panel-heading"><div class="num">1</div><h2>Data Categorization</h2></div>
+        <p>Questions are curated into spatial reasoning, affordance understanding, or neither, then deterministically subcategorized for focused evaluation.</p>
+        <div class="two-col" style="margin-top: 5mm">
+          <img class="image" src="../images/robo2vlm_pipeline.png" alt="Robo2VLM pipeline">
+          <div>
+            <img class="image" src="../images/data_stats.png" alt="Dataset statistics">
+            <div class="tag-row">
+              <span class="tag">spatial: distance</span>
+              <span class="tag">spatial: direction</span>
+              <span class="tag teal">affordance: blockage</span>
+              <span class="tag teal">affordance: grasp</span>
+            </div>
+          </div>
+        </div>
+        <div class="note-box">Older Qwen and spatial DeepSeek rows store <strong>tag: unknown</strong>, so spatial subcategory breakdowns are inferred from question text.</div>
+      </article>
+
+      <article class="panel" style="--accent: var(--blue)">
+        <div class="panel-heading"><div class="num">2</div><h2>Experiments</h2></div>
+        <p>Eight 200-example runs compare Qwen2.5-VL-3B and DeepSeek-VL2 tiny across spatial vs affordance subsets and zero-shot vs chain-of-thought prompts.</p>
+        <div class="metric-row">
+          <div class="metric" style="--accent: var(--teal-2)"><span class="metric-value">72.0%</span><span class="metric-label">best single run</span><span class="metric-sub">DeepSeek affordance zero-shot</span></div>
+          <div class="metric" style="--accent: var(--orange)"><span class="metric-value">22.0%</span><span class="metric-label">best spatial run</span><span class="metric-sub">DeepSeek spatial CoT</span></div>
+          <div class="metric" style="--accent: var(--blue)"><span class="metric-value">1,600</span><span class="metric-label">scored examples</span><span class="metric-sub">8 evaluation runs</span></div>
+        </div>
+        <div class="headline-chart" aria-label="Headline accuracy chart">
+          <div class="bar-group">
+            <div class="bars">
+              <div class="bar" style="height: 25%; background: var(--teal-2)"><span>20.0</span></div>
+              <div class="bar" style="height: 24.4%; background: var(--orange)"><span>19.5</span></div>
+            </div>
+            <div>Qwen<br>spatial</div>
+          </div>
+          <div class="bar-group">
+            <div class="bars">
+              <div class="bar" style="height: 81.9%; background: var(--teal-2)"><span>65.5</span></div>
+              <div class="bar" style="height: 80%; background: var(--orange)"><span>64.0</span></div>
+            </div>
+            <div>Qwen<br>affordance</div>
+          </div>
+          <div class="bar-group">
+            <div class="bars">
+              <div class="bar" style="height: 24.4%; background: var(--teal-2)"><span>19.5</span></div>
+              <div class="bar" style="height: 27.5%; background: var(--orange)"><span>22.0</span></div>
+            </div>
+            <div>DeepSeek<br>spatial</div>
+          </div>
+          <div class="bar-group">
+            <div class="bars">
+              <div class="bar" style="height: 90%; background: var(--teal-2)"><span>72.0</span></div>
+              <div class="bar" style="height: 26.9%; background: var(--orange)"><span>21.5</span></div>
+            </div>
+            <div>DeepSeek<br>affordance</div>
+          </div>
+        </div>
+        <div class="legend"><span><span class="swatch" style="background: var(--teal-2)"></span>zero-shot</span><span><span class="swatch" style="background: var(--orange)"></span>CoT</span></div>
+      </article>
+
+      <article class="panel span-2" style="--accent: var(--pink)">
+        <div class="panel-heading"><div class="num">3</div><h2>Concrete Dataset Samples</h2></div>
+        <p>Examples show the visual question formats behind the aggregate metrics: multi-view correspondence, depth/point questions, robot motion arrows, and affordance probes.</p>
+        <div class="sample-grid">
+          <div class="sample-card large">
+            <img class="image cover" src="../images/VQA-examples2.png" alt="Robo2VLM VQA example collage">
+            <div class="sample-title">Robo2VLM-style VQA examples across multiple manipulation phases and modalities.</div>
+          </div>
+          <div class="sample-card">
+            <img class="image cover" src="../tmp/source_0000_depth.png" alt="Source 0 affordance sample">
+            <div class="sample-title">source_index 0: bottle blockage. DeepSeek zero-shot predicts A correctly; DeepSeek CoT predicts D incorrectly.</div>
+          </div>
+          <div class="sample-card">
+            <img class="image cover" src="../tmp/source_000368_depth.png" alt="Source 368 direction sample">
+            <div class="sample-title">source_index 368: direction-arrow question. Qwen CoT predicts A correctly; Qwen zero-shot predicts E.</div>
+          </div>
+          <div class="sample-card">
+            <img class="image cover" src="../tmp/source_000408_depth.png" alt="Source 408 cross-view correspondence sample">
+            <div class="sample-title">source_index 408: cross-view correspondence. CoT predicts E correctly; zero-shot predicts B.</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel" style="--accent: var(--orange)">
+        <div class="panel-heading"><div class="num">4</div><h2>Subcategory Results</h2></div>
+        <p>Best observed accuracy per subcategory shows that object blockage is much easier than spatial grounding or grasp stability.</p>
+        <div class="result-grid">
+          <div class="result-row"><span>Direction arrows</span><div class="track"><div class="fill" style="--w: 21.9%; --c: var(--orange)"></div></div><span>19.7%</span></div>
+          <div class="result-row"><span>Distance/depth</span><div class="track"><div class="fill" style="--w: 29.3%; --c: var(--blue)"></div></div><span>26.4%</span></div>
+          <div class="result-row"><span>Cross-view</span><div class="track"><div class="fill" style="--w: 26.9%; --c: var(--purple)"></div></div><span>24.2%</span></div>
+          <div class="result-row"><span>Object blockage</span><div class="track"><div class="fill" style="--w: 94.2%; --c: var(--teal-2)"></div></div><span>84.8%</span></div>
+          <div class="result-row"><span>Grasp stability</span><div class="track"><div class="fill" style="--w: 52.3%; --c: var(--pink)"></div></div><span>47.1%</span></div>
+        </div>
+        <ul class="bullets">
+          <li>Affordance scores are mostly carried by object-blockage questions.</li>
+          <li>Grasp stability remains weak: best run is DeepSeek zero-shot at 32/68.</li>
+          <li>DeepSeek CoT collapses on object blockage: 84.8% zero-shot to 13.6% CoT.</li>
+        </ul>
+      </article>
+
+      <article class="panel" style="--accent: var(--purple)">
+        <div class="panel-heading"><div class="num">5</div><h2>Sanity Checks</h2></div>
+        <p>Image-understanding probes test correct-answer support, wrong-answer rejection, blank-image rejection, and shuffled-image mismatch detection over 20 selected examples.</p>
+        <div class="sanity-grid">
+          <div class="probe">
+            <div class="probe-title">Correct answer supported</div>
+            <div class="probe-row">Qwen 12/20</div><div class="probe-track"><div class="probe-fill" style="--w: 60%; --c: var(--blue)"></div></div>
+            <div class="probe-row">DeepSeek 0/20</div><div class="probe-track"><div class="probe-fill" style="--w: 0%; --c: var(--purple)"></div></div>
+          </div>
+          <div class="probe">
+            <div class="probe-title">Wrong answer rejected</div>
+            <div class="probe-row">Qwen 0/20</div><div class="probe-track"><div class="probe-fill" style="--w: 0%; --c: var(--blue)"></div></div>
+            <div class="probe-row">DeepSeek 3/20</div><div class="probe-track"><div class="probe-fill" style="--w: 15%; --c: var(--purple)"></div></div>
+          </div>
+          <div class="probe">
+            <div class="probe-title">Blank image rejected</div>
+            <div class="probe-row">Qwen 20/20</div><div class="probe-track"><div class="probe-fill" style="--w: 100%; --c: var(--blue)"></div></div>
+            <div class="probe-row">DeepSeek 20/20</div><div class="probe-track"><div class="probe-fill" style="--w: 100%; --c: var(--purple)"></div></div>
+          </div>
+          <div class="probe">
+            <div class="probe-title">Shuffled image rejected</div>
+            <div class="probe-row">Qwen 3/20</div><div class="probe-track"><div class="probe-fill" style="--w: 15%; --c: var(--blue)"></div></div>
+            <div class="probe-row">DeepSeek 20/20</div><div class="probe-track"><div class="probe-fill" style="--w: 100%; --c: var(--purple)"></div></div>
+          </div>
+        </div>
+        <div class="note-box">The heuristic labels are phrase-based triage, not a substitute for manual review. They expose answer rationalization and weak visual grounding that headline accuracy hides.</div>
+      </article>
+
+      <article class="panel span-2" style="--accent: var(--ink)">
+        <div class="panel-heading"><div class="num">6</div><h2>Discussion</h2></div>
+        <div class="discussion-grid">
+          <div>
+            <p>These results should be interpreted as a controlled benchmark readout rather than a comprehensive ranking of general robotic reasoning ability.</p>
+            <ul class="bullets">
+              <li>Spatial scores near 5-way chance indicate limited evidence that the tested VLMs reliably use depth, camera geometry, and end-effector cues under the current prompting setup.</li>
+              <li>Affordance accuracy is heterogeneous: object-blockage questions are comparatively tractable, while grasp-stability questions remain weak. Aggregate affordance accuracy should therefore not be read as a general affordance-understanding score.</li>
+              <li>CoT changes model behavior but is not consistently beneficial. The DeepSeek affordance regression suggests that explanatory prompting can introduce target/obstacle confusions and post-hoc rationalization.</li>
+              <li>The sanity probes are diagnostic, not definitive: phrase-based judgments reveal failure modes, but final grounding claims require manual annotation or a stronger rubric.</li>
+            </ul>
+          </div>
+          <div class="callout">
+            Limitations and follow-up:<br><br>
+            Current scored runs use 200 examples per condition, RGB-only images, two fully evaluated checkpoints, and inferred subcategory labels for older artifacts.<br><br>
+            Next steps are to regenerate all rows with stored curation metadata, run subcategory-specific evaluations on matched indices, add human-coded sanity review, and test RGB-depth input on spatial distance/depth examples.<br><br>
+            Qualitative cases to audit: source 0 for DeepSeek CoT prompt regression, source 368 for direction-arrow contrast, source 408 for cross-view correspondence, and sanity source 369 for Qwen wrong-answer rationalization.
+          </div>
+        </div>
+      </article>
+
+      <footer class="footer">
+        <span>Generated from local repository artifacts on 2026-06-01. Main report: docs/evaluation-results-and-sanity.md</span>
+        <span>Portrait A1: 594 mm x 841 mm</span>
+      </footer>
+    </section>
+  </main>
+</body>
+</html>

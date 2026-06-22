@@ -1,0 +1,5 @@
+ID,Phase,Title,Description,Target_Citations,Visualization,Acceptance,Status,Verified_Citations,Notes
+R1,Research,Evidence and citation spine,Verify local artifacts and source-page citations for the final report,15,N/A,Claims trace to local files or verified papers,DONE,15,Robo2VLM; Qwen2.5-VL; DeepSeek-VL2; embodied VLM/VLA; VQA; grounding
+W1,Writing,Final report,Replace template placeholders with compact final report sections and tables,15,Tables,Report includes required academic sections and explicit implementation provenance,DONE,15,Kept main text concise for <=6 pages
+RF1,Refinement,Concise pass,Remove filler and overclaims while preserving citations and approved scope,0,N/A,No unsupported novelty or provenance caveat appears,DONE,0,No unsupported first-of-kind claim; no curation-model caveat included
+Q1,QA,Source QA,Validate issue CSV and inspect LaTeX source for placeholders and obvious syntax problems,0,N/A,No author-kit placeholder prose remains; issue CSV validates,DONE,0,Local LaTeX unavailable; source QA passed
