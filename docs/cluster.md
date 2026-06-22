@@ -49,13 +49,6 @@ conventions as the evaluation jobs. Set `SAVE_PROBE_IMAGES=1` to save the image
 payloads used for each probe, or pass extra script arguments after the max
 example count, for example `--probe overlay_describe`.
 
-Fine-tuning jobs use the same cluster conventions:
-
-```bash
-sbatch slurm/finetune.sbatch
-FINETUNE_CONFIG=llama_vision.yaml sbatch slurm/finetune.sbatch
-```
-
 Common environment overrides:
 
 ```bash
@@ -80,14 +73,16 @@ python3 -m venv /work/courses/3dv/team43/3dv-env-cu130
 source /work/courses/3dv/team43/3dv-env-cu130/bin/activate
 pip install --upgrade pip
 pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
-pip install --no-cache-dir -e "/work/courses/3dv/team43/benchmarking-vlms[eval,analysis]"
+cd /work/courses/3dv/team43/benchmarking-vlms
+pip install --no-cache-dir -r requirements.txt
+pip install --no-cache-dir -e .
 ```
 
 The PyTorch wheel suffix must match the loaded CUDA module. For `cuda/13.0`,
 use the `cu130` PyTorch index URL.
 
-DeepSeek-VL2 needs `timm` for its vision tower. It is included in the
-`[eval]` extra. If your environment predates this change, update it with:
+DeepSeek-VL2 needs `timm` for its vision tower. It is included in the root
+requirements file. If your environment predates this change, update it with:
 
 ```bash
 source /work/courses/3dv/team43/3dv-env-cu130/bin/activate

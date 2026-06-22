@@ -13,16 +13,16 @@ The maintained workflow is config-driven:
 2. Evaluate VLM checkpoints on fixed subsets with zero-shot and CoT prompts.
 3. Analyze accuracy, subcategory behavior, and visual-grounding sanity checks.
 
-Legacy Robo2VLM generation and fine-tuning code is retained for provenance, but
-the benchmark entry points live under `src/vlm_bench`, `configs`, `scripts`,
-and `slurm`.
+Legacy Robo2VLM data-generation code is retained for provenance, but the
+maintained project surface is evaluation, curation, diagnostics, and analysis.
 
 ## Quick Start
 
 Install the local package:
 
 ```bash
-pip install -e ".[eval,analysis,test]"
+pip install -r requirements.txt
+pip install -e .
 ```
 
 Dry-run an evaluation locally. This validates the config and command plumbing
@@ -65,7 +65,6 @@ scripts/          Dataset curation, post-processing, and visualization utilities
 slurm/            ETH cluster entry points
 cluster_scripts/  Compatibility wrappers around the maintained Slurm workflow
 generation/       Original Robo2VLM data-generation code
-finetune/         Original fine-tuning code and notes
 docs/             Focused workflow and result documentation
 runs/             Tracked evaluation and diagnostic result artifacts
 output/pdf/       Tracked figures and inserts used in the report/poster
@@ -116,12 +115,6 @@ Question embedding analysis:
 ```bash
 vlm-bench analyze --config configs/analysis/robo2vlm_question_umap.yaml --dry-run
 sbatch slurm/analyze.sbatch configs/analysis/robo2vlm_question_umap.yaml
-```
-
-Fine-tuning:
-
-```bash
-sbatch slurm/finetune.sbatch
 ```
 
 Primary documentation:

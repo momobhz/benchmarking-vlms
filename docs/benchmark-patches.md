@@ -44,8 +44,7 @@ jobs and current dependency versions:
 - Prompt mode, temperature, max tokens, run name, and output directory are now
   explicit evaluation arguments and are normally supplied through
   `configs/eval/*.yaml`.
-- DeepSeek-VL2 requires `timm`; it is part of the repository's `[eval]`
-  dependency extra.
+- DeepSeek-VL2 requires `timm`; it is part of the root `requirements.txt`.
 
 ## Practical Baseline
 
@@ -55,7 +54,9 @@ For the 3DV student cluster, the expected baseline is:
 . /etc/profile.d/modules.sh
 module add cuda/13.0
 pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
-pip install --no-cache-dir -e "/work/courses/3dv/team43/benchmarking-vlms[eval]"
+cd /work/courses/3dv/team43/benchmarking-vlms
+pip install --no-cache-dir -r requirements.txt
+pip install --no-cache-dir -e .
 ```
 
 Submit config-driven evaluations with:
