@@ -1,8 +1,0 @@
-\section{Implementation Provenance}
-\label{sec:implementation}
-
-\textbf{Implemented in this project.}
-We implemented the Robo2VLM curation and post-processing pipeline, including the spatial/affordance/discarded taxonomy, deterministic subcategory rules, goal-state relabeling, and JSONL summaries. We also implemented the config-driven CLI around the evaluator, Slurm entrypoints, prompt-mode handling, option-letter extraction, subset loading by curated source index, RGB-depth image augmentation hooks, visual sanity controls, diagnostic prompt generation, and analysis summaries. The checked-in tests cover curation post-processing, config validation, and plotting/visualization utilities.
-
-\textbf{External code and models.}
-The underlying Robo2VLM dataset and original generation/fine-tuning code are external to our contribution and are used as the source benchmark~\cite{chen2025robo2vlm}. Inference uses vLLM and model-family prompt wrappers adapted from vLLM examples. The evaluated pretrained VLMs are external checkpoints, including Qwen2.5-VL~\cite{bai2025qwen25vl}, DeepSeek-VL2~\cite{wu2024deepseekvl2}, and poster-reported compact baselines. Optional RGB-depth images use an external monocular depth estimator. The curation labels were produced with an external hosted LLM API; our contribution is the taxonomy, prompting, validation, deterministic post-processing, and downstream evaluation logic.
